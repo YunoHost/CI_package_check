@@ -9,7 +9,7 @@ then	# Le travail est reporté à la prochaine exécution si le lock de package 
 	then	# Si la liste de test n'est pas vide
 		touch "$script_dir/pcheck_lock"
 		APP=$(head -n1 "$script_dir/work_list")
-		rm "$script_dir/logs/$(basename $APP).log"	# Supprime le log du précédent test.
+		rm -f "$script_dir/logs/$(basename $APP).log"	# Supprime le log du précédent test.
 		"$script_dir/package_check/package_check.sh" --bash-mode $APP	# Exécute package_check sur la première adresse de la liste.
 		sed -i 1d "$script_dir/work_list"	# Supprime la première ligne de la liste
 		cp "$script_dir/package_check/Test_results.log" "$script_dir/logs/$(basename $APP).log"
