@@ -1,0 +1,2 @@
+# Vérifie toutes les 5 minutes si un test doit être lancé avec Package_check
+*/5 * * * * root __PATH__/pcheckCI.sh >> __PATH__/pcheckCI.log
