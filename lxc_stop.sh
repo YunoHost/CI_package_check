@@ -29,3 +29,5 @@ echo "Arrêt de l'interface réseau pour le conteneur."
 if sudo ifquery lxc-pchecker --state > /dev/null; then
 	sudo ifdown --force lxc-pchecker
 fi
+
+sudo rm "$script_dir/package_check/pcheck.lock" # Retire le lock

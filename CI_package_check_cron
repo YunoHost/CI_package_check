@@ -1,2 +1,5 @@
 # Vérifie toutes les 5 minutes si un test doit être lancé avec Package_check
-*/5 * * * * root __PATH__/pcheckCI.sh >> __PATH__/pcheckCI.log
+*/5 * * * * root "__PATH__/pcheckCI.sh" 2>> "__PATH__/pcheckCI.log"
+
+# Vérifie les mises à jour du conteneur, à 4h chaque nuit.
+0 4 * * * root "__PATH__/package_check/sub_scripts/auto_upgrade.sh" >> "__PATH__/package_check/upgrade.log" 2>&1
