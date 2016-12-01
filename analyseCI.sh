@@ -6,16 +6,16 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 # Le premier (et seul) argument du script est l'adresse du dépôt git à tester
 
 echo $1 >> "$script_dir/work_list"	# Ajoute le dépôt à tester à la suite de la liste
-APP=$(basename $1)
+APP_LOG=$(echo "${1#http*://}" | sed 's@/@_@g').log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
 
 echo ""
 date
 echo "Attente du début du travail..."
-if ! test -e "$script_dir/logs/$APP.log"
+if ! test -e "$script_dir/logs/$APP_LOG"
 then	# Si c'est la première exécution de ce test, le fichier de log n'existe pas.
 	echo "!!! Attention première exécution du test, l'indication de début de travail est faussée..."
 fi
-while test -e "$script_dir/logs/$APP.log"; do
+while test -e "$script_dir/logs/$APP_LOG"; do
 	sleep 30	# Attend que le log soit supprimé par le script pcheckCI.sh, ce qui indiquera le début du test sur ce package.
 	echo -n "."
 done
@@ -24,7 +24,7 @@ echo ""
 date
 echo "Package_check est actuellement en train de tester le package..."
 nb_print=0
-while ! test -e "$script_dir/logs/$APP.log"; do
+while ! test -e "$script_dir/logs/$APP_LOG"; do
 	sleep 30	# Attend que le log soit recréé par le script pcheckCI.sh, ce qui indiquera la fin du test sur ce package.
 	if [ "$nb_print" -gt 1 ]; then
 		cat "$script_dir/package_check/Complete.log" | grep ">>.*Test" | sed "1,"$nb_print"d"	# Affiche les titres de test, en supprimant autant de ligne trouvée que de test déjà affichés. Pour afficher seulement les nouveaux tests.
@@ -37,9 +37,9 @@ echo ""
 date
 echo -ne "Fin du test."
 
-cat "$script_dir/logs/$APP.log"	# Affiche le log dans le CI
+cat "$script_dir/logs/$APP_LOG"	# Affiche le log dans le CI
 
-if grep "FAIL$" "$script_dir/logs/$APP.log" | grep -v "Package linter" | grep -q "FAIL$"
+if grep "FAIL$" "$script_dir/logs/$APP_LOG" | grep -v "Package linter" | grep -q "FAIL$"
 then	# Cherche dans le résultat final les FAIL pour connaitre le résultat global.
 # grep -v "Package linter" est temporaire et permet d'éviter d'afficher un package en erreur si il ne passe pas le test de Package linter
 	exit 1	# Si des FAIL sont trouvé, sort en erreur.

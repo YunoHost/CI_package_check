@@ -11,7 +11,8 @@ then	# Le travail est reporté à la prochaine exécution si le lock de package 
 	then	# Si la liste de test n'est pas vide
 		touch "$script_dir/pcheck_lock"
 		APP=$(head -n1 "$script_dir/work_list")
-		rm -f "$script_dir/logs/$(basename $APP).log"	# Supprime le log du précédent test.
+		APP_LOG=$(echo "${APP#http*://}" | sed 's@/@_@g').log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
+		rm -f "$script_dir/logs/$APP_LOG"	# Supprime le log du précédent test.
 		inittime=$(date +%s)	# Enregistre l'heure de démarrage du test
 		"$script_dir/package_check/package_check.sh" --bash-mode $APP > "$script_dir/package_check/Test_results_cli.log" &	# Exécute package_check sur la première adresse de la liste, et passe l'exécution en arrière plan.
 		PID_PCHECK=$!	# Récupère le PID de la commande package_check
@@ -26,9 +27,9 @@ then	# Le travail est reporté à la prochaine exécution si le lock de package 
 			sleep 30
 		done
 		sed -i 1d "$script_dir/work_list"	# Supprime la première ligne de la liste
-		cp "$script_dir/package_check/Test_results_cli.log" "$script_dir/logs/$(basename $APP).log"
+		cp "$script_dir/package_check/Test_results_cli.log" "$script_dir/logs/$APP_LOG"
 		if [ "$inittime" -eq "0" ]; then
-			echo "!!! L'exécution de Package_check a été trop longue, le script a été avorté. !!!" >> "$script_dir/logs/$(basename $APP).log"
+			echo "!!! L'exécution de Package_check a été trop longue, le script a été avorté. !!!" >> "$script_dir/logs/$APP_LOG"
 		fi
 		rm "$script_dir/pcheck_lock"
 	fi
