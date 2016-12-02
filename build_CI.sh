@@ -5,8 +5,6 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 
 touch "$script_dir/CI.lock"	# Place le lock du CI, pour éviter des démarrages intempestifs avant la fin de l'installation
 
-if test -e "$script_dir/package_check/pcheck.lock" || test -e "$script_dir/CI.lock"
-
 touch "$script_dir/work_list"	# Créer le fichier work_list
 chmod 666 "$script_dir/work_list"	# Et lui donne le droit d'écriture par tout le monde. Car c'est le logiciel de CI qui va y écrire.
 mkdir -p "$script_dir/logs"	# Créer le dossier des logs
