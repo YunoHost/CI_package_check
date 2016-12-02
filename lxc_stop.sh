@@ -6,7 +6,7 @@
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
 PLAGE_IP=$(cat "$script_dir/package_check/sub_scripts/lxc_build.sh" | grep PLAGE_IP= | cut -d '=' -f2)
-LXC_NAME=$(cat "$script_dir/package_check/sub_scripts/lxc_build.sh" | grep LXC_NAME1= | cut -d '=' -f2)
+LXC_NAME=$(cat "$script_dir/package_check/sub_scripts/lxc_build.sh" | grep LXC_NAME= | cut -d '=' -f2)
 
 echo "> Arrêt du conteneur"
 if [ $(sudo lxc-info --name $LXC_NAME | grep -c "STOPPED") -eq 0 ]; then
@@ -30,4 +30,6 @@ if sudo ifquery lxc-pchecker --state > /dev/null; then
 	sudo ifdown --force lxc-pchecker
 fi
 
-sudo rm "$script_dir/package_check/pcheck.lock" # Retire le lock
+# Retire les locks
+sudo rm "$script_dir/package_check/pcheck.lock"
+sudo rm "$script_dir/CI.lock"

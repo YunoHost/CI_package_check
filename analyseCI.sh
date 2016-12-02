@@ -4,22 +4,25 @@
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
 # Le premier (et seul) argument du script est l'adresse du dépôt git à tester
+id=$(head -n20 /dev/urandom | tr -c -d 'A-Za-z0-9' | head -c10)	# Défini un id unique pour le test.
 
-echo $1 >> "$script_dir/work_list"	# Ajoute le dépôt à tester à la suite de la liste
+echo "$1;$id" >> "$script_dir/work_list"	# Ajoute le dépôt à tester à la suite de la liste
 APP_LOG=$(echo "${1#http*://}" | sed 's@/@_@g').log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
 
 echo ""
 date
 echo "Attente du début du travail..."
-if ! test -e "$script_dir/logs/$APP_LOG"
-then	# Si c'est la première exécution de ce test, le fichier de log n'existe pas.
-	echo "!!! Attention première exécution du test, l'indication de début de travail est faussée..."
-fi
-while test -e "$script_dir/logs/$APP_LOG"; do
-	sleep 30	# Attend que le log soit supprimé par le script pcheckCI.sh, ce qui indiquera le début du test sur ce package.
+while true; do	# Boucle infinie.
+	if test -e "$script_dir/CI.lock"	# Si le lock du CI est en place, le script pcheckCI a commencé à travailler.
+	then
+		if [ $(cat "$script_dir/CI.lock") = "$id" ]	# Si le fichier CI.lock contient l'id de l'application à tester, le test a débuté.
+		then
+			break	# Sors de la boucle d'attente
+		fi
+	fi
+	sleep 30
 	echo -n "."
 done
-# Cette double boucle permet de ne pas effacer trop tôt le log précédent. Mais seulement pendant le travail de Package_check sur le package concerné.
 echo ""
 date
 echo "Package_check est actuellement en train de tester le package..."
@@ -38,6 +41,7 @@ date
 echo -ne "Fin du test."
 
 cat "$script_dir/logs/$APP_LOG"	# Affiche le log dans le CI
+echo -n "" > "$script_dir/CI.lock"	# Vide le fichier lock pour indiquer qu'il peux être supprimé. (Ce script n'a pas suffisamment de droit pour supprimer lui-même le fichier.)
 
 if grep "FAIL$" "$script_dir/logs/$APP_LOG" | grep -v "Package linter" | grep -q "FAIL$"
 then	# Cherche dans le résultat final les FAIL pour connaitre le résultat global.
