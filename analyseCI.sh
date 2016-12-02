@@ -1,5 +1,19 @@
 #!/bin/bash
 
+if [ "$#" -eq 0 ]
+then
+	echo "Le script prend en argument le package à tester."
+	exit 1
+fi
+if [ "$#" -gt 1 ]
+then
+	echo "Le script prend un seul argument."
+	exit 1
+fi
+
+milli_sleep=$(head -n20 /dev/urandom | tr -c -d '0-9' | head -c3)       # Prend 3 chiffres aléatoires pour avoir une valeur entre 1 et 999 millisecondes
+sleep "0.$milli_sleep"	# Retarde au maximum d'une seconde le démarrage pour éviter des démarrages concurrents.
+
 # Récupère le dossier du script
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
