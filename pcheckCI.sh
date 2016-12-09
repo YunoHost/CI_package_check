@@ -22,6 +22,7 @@ then	# Si la liste de test n'est pas vide
 
 	APP=$(head -n1 "$script_dir/work_list")	# Prend la première ligne de work_list
 	id=$(echo $APP | cut -d ';' -f 2)	# Isole l'id
+	job=$(echo $APP | cut -d ';' -f 3)	# Isole le nom du test
 	APP=$(echo $APP | cut -d ';' -f 1)	# Isole l'app
 
 	echo $id > "$script_dir/CI.lock" # Met en place le lock pour le CI, afin d'éviter des démarrages pendant les wait. Le lock contient le nom du package à tester
@@ -48,8 +49,9 @@ then	# Si la liste de test n'est pas vide
 	complete_log=$(basename -s .log "$APP_LOG")_complete.log	# Le complete log est le même que celui des résultats, auquel on ajoute _complete avant le .log
 	cp "$script_dir/package_check/Complete.log" "$script_dir/logs/$complete_log"	# Et le log complet
 	sed -i "s@$script_dir/package_check/Complete.log@$script_dir/logs/$complete_log@g" "$script_dir/logs/$APP_LOG"	# Change l'emplacement du complete.log à la fin des résultats du test.
+	sed -i "1i-> Test $job\n" "$script_dir/logs/$APP_LOG"	# Ajoute le nom du job au début du log
 	if [ "$inittime" -eq "0" ]; then
-		echo "!!! L'exécution de Package_check a été trop longue, le script a été avorté. !!!" >> "$script_dir/logs/$APP_LOG"
+		echo "!!! L'exécution de Package_check a été trop longue, le script a été avorté. !!! (PCHECK_AVORTED)" >> "$script_dir/logs/$APP_LOG"
 	fi
 	date
 	echo "Fin du test sur $APP (id: $id)"

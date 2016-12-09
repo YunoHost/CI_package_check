@@ -1,13 +1,8 @@
 #!/bin/bash
 
-if [ "$#" -eq 0 ]
+if [ "$#" -ne 2 ]
 then
-	echo "Le script prend en argument le package à tester."
-	exit 1
-fi
-if [ "$#" -gt 1 ]
-then
-	echo "Le script prend un seul argument."
+	echo "Le script prend en argument le package à tester et le nom du test."
 	exit 1
 fi
 
@@ -17,10 +12,9 @@ sleep "0.$milli_sleep"	# Retarde au maximum d'une seconde le démarrage pour év
 # Récupère le dossier du script
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
-# Le premier (et seul) argument du script est l'adresse du dépôt git à tester
 id=$(head -n20 /dev/urandom | tr -c -d 'A-Za-z0-9' | head -c10)	# Défini un id unique pour le test.
-
-echo "$1;$id" >> "$script_dir/work_list"	# Ajoute le dépôt à tester à la suite de la liste
+# Le premier argument du script est l'adresse du dépôt git à tester
+echo "$1;$id;$2" >> "$script_dir/work_list"	# Ajoute le dépôt à tester à la suite de la liste
 APP_LOG=$(echo "${1#http*://}" | sed 's@/@_@g').log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
 
 echo ""
