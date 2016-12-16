@@ -23,7 +23,7 @@ echo "Attente du début du travail..."
 while true; do	# Boucle infinie.
 	if test -e "$script_dir/CI.lock"	# Si le lock du CI est en place, le script pcheckCI a commencé à travailler.
 	then
-		if [ $(cat "$script_dir/CI.lock") = "$id" ]	# Si le fichier CI.lock contient l'id de l'application à tester, le test a débuté.
+		if [ "$(cat "$script_dir/CI.lock")" = "$id" ]	# Si le fichier CI.lock contient l'id de l'application à tester, le test a débuté.
 		then
 			break	# Sors de la boucle d'attente
 		fi
@@ -51,8 +51,8 @@ echo -ne "Fin du test."
 cat "$script_dir/logs/$APP_LOG"	# Affiche le log dans le CI
 echo -n "" > "$script_dir/CI.lock"	# Vide le fichier lock pour indiquer qu'il peux être supprimé. (Ce script n'a pas suffisamment de droit pour supprimer lui-même le fichier.)
 
-if grep "FAIL$" "$script_dir/logs/$APP_LOG" | grep -v "Package linter" | grep -q "FAIL$"
-then	# Cherche dans le résultat final les FAIL pour connaitre le résultat global.
+if grep "FAIL$" "$script_dir/logs/$APP_LOG" | grep -v "Package linter" | grep -q "FAIL$" || grep "PCHECK_AVORTED" "$script_dir/logs/$APP_LOG"
+then	# Cherche dans le résultat final les FAIL pour connaitre le résultat global. Ou PCHECK_AVORTED qui annonce un time out de Package check.
 # grep -v "Package linter" est temporaire et permet d'éviter d'afficher un package en erreur si il ne passe pas le test de Package linter
 	exit 1	# Si des FAIL sont trouvé, sort en erreur.
 else
