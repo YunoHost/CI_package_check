@@ -10,6 +10,7 @@ jenkins_job_path="/var/lib/jenkins/jobs"
 jenkins_url=$(sudo yunohost app map -a jenkins | cut -d':' -f1)
 
 templist="$script_dir/templist"
+dest=root	# Destinataire du mail. root par défaut pour envoyer à l'admin du serveur.
 
 JENKINS_BUILD_JOB () {
 	sed "s@__DEPOTGIT__@$app@g" "$script_dir/jenkins/jenkins_job.xml" > "$script_dir/jenkins/jenkins_job_load.xml"	# Renseigne le dépôt git dans le fichier de job de jenkins, et créer un nouveau fichier pour stocker les nouvelles informations
@@ -61,7 +62,7 @@ ADD_JOB () {
 		if ! grep -q "$app" "$applist"
 		then	# Si l'app n'est pas dans la liste, c'est une nouvelle app.
 			appname=$(echo "$app" | cut -d';' -f2)	# Prend le nom de l'app, après l'adresse du dépôt
-			echo "Ajout de l'application $appname"
+			echo "Ajout de l'application $appname pour le dépôt $app" | tee -a "$script_dir/job_mail"
 			echo "$app" >> "$applist"	# L'application est ajoutée à la liste, suivi du nom de l'app
 			BUILD_JOB	# Renseigne le fichier du job et le charge dans le logiciel de CI
 		fi
@@ -75,13 +76,15 @@ CLEAR_JOB () {
 		if ! grep -q "$app" "$templist"
 		then	# Si l'app n'est pas dans la liste temporaire, elle doit être supprimée des jobs.
 			appname=$(grep "$app" "$applist" | cut -d';' -f2)	# Prend le nom de l'app, après l'adresse du dépôt
-			echo "Suppression de l'application $appname"
+			echo "Suppression de l'application $appname" | tee -a "$script_dir/job_mail"
 			sed -i "/$appname/d" "$applist"	# Supprime l'application de la liste des jobs
 			sudo tar -cpzf "$job_path/$appname $(date +%d-%m-%Y).tar.gz" -C "$job_path" "$appname"	# Créer une archive datée du job avant de le supprimer.
 			REMOVE_JOB
 		fi
 	done < "$applist"	# Liste les apps dans la liste des jobs actuels
 }
+
+> "$script_dir/job_mail"    # Purge le contenu du mail
 
 # Liste les applications officielles
 PARSE_LIST official	# Extrait les adresses des apps et forme la liste des apps
@@ -92,3 +95,8 @@ ADD_JOB official	# Ajoute des job pour les nouvelles apps dans la liste
 PARSE_LIST community	# Extrait les adresses des apps et forme la liste des apps
 CLEAR_JOB community	# Supprime les jobs pour les apps supprimées de la liste
 ADD_JOB community	# Ajoute des job pour les nouvelles apps dans la liste
+
+if [ ! -s "$script_dir/job_mail" ]
+then
+    mail -s "Modification de la liste des applications" "$dest" < "$script_dir/job_mail"	# Envoi le rapport par mail.
+fi
