@@ -55,7 +55,7 @@ if grep "FAIL$" "$script_dir/logs/$APP_LOG" | grep -v "Package linter" | grep -q
 then	# Cherche dans le résultat final les FAIL pour connaitre le résultat global. Ou PCHECK_AVORTED qui annonce un time out de Package check.
 # grep -v "Package linter" est temporaire et permet d'éviter d'afficher un package en erreur si il ne passe pas le test de Package linter
 	exit 1	# Si des FAIL sont trouvé, sort en erreur.
-elif ! grep "SUCCESS$" "$APP_LOG" | grep -v "Package linter" | grep -q "SUCCESS$"
+elif ! grep "SUCCESS$" "$script_dir/logs/$APP_LOG" | grep -v "Package linter" | grep -q "SUCCESS$"
 then    # Si il n'y a aucun SUCCESS à l'exception de Package linter. Aucun test n'a été effectué.
         exit 1
 else

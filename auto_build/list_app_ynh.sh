@@ -96,7 +96,7 @@ PARSE_LIST community	# Extrait les adresses des apps et forme la liste des apps
 CLEAR_JOB community	# Supprime les jobs pour les apps supprimées de la liste
 ADD_JOB community	# Ajoute des job pour les nouvelles apps dans la liste
 
-if [ ! -s "$script_dir/job_mail" ]
+if [ -s "$script_dir/job_mail" ]
 then
     mail -s "Modification de la liste des applications" "$dest" < "$script_dir/job_mail"	# Envoi le rapport par mail.
 fi
