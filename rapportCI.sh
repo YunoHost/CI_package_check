@@ -45,10 +45,10 @@ do
 		echo -en "\n### Test $job:" >> "$mail_md"
 		echo -n "<br><strong>Test $job: <font color=" >> "$mail_html"
 		if [ "$global_result" -eq 0 ]; then
-			echo " **SUCCESS**" >> "$mail_md"
+			echo " **SUCCESS** :white_check_mark:" >> "$mail_md"
 			echo "green>SUCCESS" >> "$mail_html"
 		else
-			echo " **FAIL**" >> "$mail_md"
+			echo " **FAIL** :negative_squared_cross_mark:" >> "$mail_md"
 			echo "red>FAIL" >> "$mail_html"
 		fi
 		echo -e "</font>\n</strong>\n<br>" >> "$mail_html"
