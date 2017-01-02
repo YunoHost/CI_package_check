@@ -49,6 +49,7 @@ then	# Si la liste de test n'est pas vide
 	complete_log=$(basename -s .log "$APP_LOG")_complete.log	# Le complete log est le même que celui des résultats, auquel on ajoute _complete avant le .log
 	cp "$script_dir/package_check/Complete.log" "$script_dir/logs/$complete_log"	# Et le log complet
 	if test -e "$script_dir/auto_build/auto.conf"	# Si le fichier de conf de auto_build existe, c'est une instance avec accès en ligne aux logs
+	then
 		DOMAIN=$(cat "$script_dir/auto_build/auto.conf" | grep DOMAIN= | cut -d '=' -f2)
 		CI_PATH=$(cat "$script_dir/auto_build/auto.conf" | grep CI_PATH= | cut -d '=' -f2)
 		sed -i "s@$script_dir/package_check/Complete.log@https://$DOMAIN/$CI_PATH/logs/$complete_log@g" "$script_dir/logs/$APP_LOG"	# Change l'emplacement du complete.log à la fin des résultats du test.
