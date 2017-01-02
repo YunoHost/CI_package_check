@@ -12,9 +12,10 @@ CI_USER=ynhci
 # JENKINS
 SETUP_JENKINS () {
 	CI=jenkins	# Utilisateur avec lequel s'exécute jenkins
+	CI_PATH=jenkins
 
 	echo -e "\e[1m> Installation de jenkins...\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
-	sudo yunohost app install https://github.com/YunoHost-Apps/jenkins_ynh -a "domain=$DOMAIN&path=/jenkins&is_public=Yes" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo yunohost app install https://github.com/YunoHost-Apps/jenkins_ynh -a "domain=$DOMAIN&path=/$CI_PATH&is_public=Yes" | tee -a "$LOG_BUILD_AUTO_CI"
 
 	# Réduit le nombre de tests simultanés à 1 sur jenkins
 	sudo sed -i "s/<numExecutors>.*</<numExecutors>1</" /var/lib/jenkins/config.xml
@@ -96,7 +97,7 @@ fi
 
 DOMAIN=$(sudo yunohost domain list -l 1 | cut -d' ' -f2)	# Récupère le premier domaine diponible dans Yunohost
 
-echo "127.0.0.1 $DOMAIN #CI_APP" | sudo tee -a /etc/hosts	# Renseigne le domain dans le host
+echo "127.0.0.1 $DOMAIN	#CI_APP" | sudo tee -a /etc/hosts	# Renseigne le domain dans le host
 
 if ! sudo yunohost user list --output-as json | grep -q "\"username\": \"$CI_USER\""	# Vérifie si l'utilisateur existe
 then
@@ -121,6 +122,32 @@ sudo "$script_dir/list_app_ynh.sh"
 echo -e "\e[1mAjout de la tâche cron\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 cat "$script_dir/CI_package_check_cron" | sudo tee -a "/etc/cron.d/CI_package_check" > /dev/null	# Ajoute le cron à la suite du cron de CI déjà en place.
 sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check"	# Renseigne l'emplacement du script dans le cron
+
+# Modifie la config nginx pour ajouter l'accès aux logs
+echo | sudo tee -a "/etc/nginx/conf.d/$DOMAIN.d/$CI_PATH.conf" <<EOF | tee -a "$LOG_BUILD_AUTO_CI"
+location /$CI_PATH/logs {
+   alias $(dirname "$script_dir")/logs/;
+   autoindex on;
+}
+EOF
+
+# Créer le fichier de configuration
+echo | sudo tee "$script_dir/auto.conf" <<EOF | tee -a "$LOG_BUILD_AUTO_CI"
+# Mail de destination des notifications de changement d'apps dans la liste.
+MAIL_DEST=root
+
+# Les informations qui suivent ne doivent pas être modifiées. Elles sont générées par le script d'installation.
+# Utilisateur avec lequel s'exécute le logiciel de CI
+CI=$CI
+
+# Path du logiciel de CI
+CI_PATH=$CI_PATH
+
+# Domaine utilisé
+DOMAIN=$DOMAIN
+}
+EOF
+echo -e "\e[1mLe fichier de configuration a été créée dans $script_dir/auto.conf\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 
 echo -e "\e[1mVérification des droits d'accès\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 if sudo su -l $CI -c "ls \"$script_dir\"" > /dev/null 2<&1

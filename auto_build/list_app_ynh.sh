@@ -7,10 +7,12 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 
 # JENKINS
 jenkins_job_path="/var/lib/jenkins/jobs"
-jenkins_url=$(sudo yunohost app map -a jenkins | cut -d':' -f1)
+# jenkins_url=$(sudo yunohost app map -a jenkins | cut -d':' -f1)
+
+jenkins_url=$(cat "$script_dir/auto.conf" | grep DOMAIN= | cut -d '=' -f2)/$(cat "$script_dir/auto.conf" | grep DOMAIN= | cut -d '=' -f2)
+dest=$(cat "$script_dir/auto.conf" | grep MAIL_DEST= | cut -d '=' -f2)
 
 templist="$script_dir/templist"
-dest=root	# Destinataire du mail. root par défaut pour envoyer à l'admin du serveur.
 
 JENKINS_BUILD_JOB () {
 	sed "s@__DEPOTGIT__@$app@g" "$script_dir/jenkins/jenkins_job.xml" > "$script_dir/jenkins/jenkins_job_load.xml"	# Renseigne le dépôt git dans le fichier de job de jenkins, et créer un nouveau fichier pour stocker les nouvelles informations

@@ -48,7 +48,13 @@ then	# Si la liste de test n'est pas vide
 	cp "$script_dir/package_check/Test_results_cli.log" "$script_dir/logs/$APP_LOG"	# Copie le log des résultats
 	complete_log=$(basename -s .log "$APP_LOG")_complete.log	# Le complete log est le même que celui des résultats, auquel on ajoute _complete avant le .log
 	cp "$script_dir/package_check/Complete.log" "$script_dir/logs/$complete_log"	# Et le log complet
-	sed -i "s@$script_dir/package_check/Complete.log@$script_dir/logs/$complete_log@g" "$script_dir/logs/$APP_LOG"	# Change l'emplacement du complete.log à la fin des résultats du test.
+	if test -e "$script_dir/auto_build/auto.conf"	# Si le fichier de conf de auto_build existe, c'est une instance avec accès en ligne aux logs
+		DOMAIN=$(cat "$script_dir/auto_build/auto.conf" | grep DOMAIN= | cut -d '=' -f2)
+		CI_PATH=$(cat "$script_dir/auto_build/auto.conf" | grep CI_PATH= | cut -d '=' -f2)
+		sed -i "s@$script_dir/package_check/Complete.log@https://$DOMAIN/$CI_PATH/logs/$complete_log@g" "$script_dir/logs/$APP_LOG"	# Change l'emplacement du complete.log à la fin des résultats du test.
+	else
+		sed -i "s@$script_dir/package_check/Complete.log@$script_dir/logs/$complete_log@g" "$script_dir/logs/$APP_LOG"	# Change l'emplacement du complete.log à la fin des résultats du test.
+	fi
 	sed -i "1i-> Test $job\n" "$script_dir/logs/$APP_LOG"	# Ajoute le nom du job au début du log
 	if [ "$inittime" -eq "0" ]; then
 		echo "!!! L'exécution de Package_check a été trop longue, le script a été avorté. !!! (PCHECK_AVORTED)" >> "$script_dir/logs/$APP_LOG"
