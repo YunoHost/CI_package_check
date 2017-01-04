@@ -25,3 +25,28 @@ Ce contournement du logiciel de CI à 2 raison d'être.
 
 - D'une part, il permet de ne pas être dépendant d'un seul logiciel. En l'occurence, les scripts ont été conçus pour Jenkins, mais peuvent être utilisé par n'importe quel logiciel.
 - D'autre part, il résoud le problème des droits administrateurs nécessités par certaines actions de Package_check. Le logiciel de CI garde ses droits d'exécution normaux, seul le script `pcheckCI.sh` est exécuté avec les droits root par la tâche cron.
+
+---
+## Utilisation de machines distantes:
+Pour tester les packages sur diverses architectures processeur, il est possible d'utiliser des machines distantes en ssh pour exécuter d'autres instance de Package check.
+La machine distante doit disposer d'une instance fonctionnelle de CI_package_check
+
+Pour utiliser les architectures il faut tout d'abord ajouter au nom du test le nom de l'architecture à tester. Le nom du test est le 2e argument à donner à `analyseCI.sh`  
+Les arguments supportés pour les architectures sont:
+
+- `(~x86-64b~)`
+- `(~x86-32b~)`
+- `(~ARM~)`
+Ce qui donne par exemple
+```bash
+/PATH/analyseCI.sh "https://github.com/YunoHost-Apps/APP_ynh" "Nom du test (~x86-64b~)"
+```
+
+Les machines distantes seront utilisée en ssh, elles nécessiteront un accès ssh avec une clé publique sans passphrase.
+```
+ssh-keygen -t rsa -b 4096 -N "" -f "pcheckCI_key"
+ssh-copy-id -i pcheckCI_key.pub login@server
+```
+
+Le fichier de config doit être adapté selon les machines distantes utilisées.  
+Pour chaque architecture à tester en ssh, il faut remplacer `Instance=LOCAL` par `Instance=SSH` et renseigner les informations de connexion ssh.

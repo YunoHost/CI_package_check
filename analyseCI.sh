@@ -15,7 +15,8 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 id=$(head -n20 /dev/urandom | tr -c -d 'A-Za-z0-9' | head -c10)	# Défini un id unique pour le test.
 # Le premier argument du script est l'adresse du dépôt git à tester
 echo "$1;$id;$2" >> "$script_dir/work_list"	# Ajoute le dépôt à tester à la suite de la liste
-APP_LOG=$(echo "${1#http*://}" | sed 's@/@_@g').log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
+ARCH="$(echo $(expr match "$2" '.*\((~.*~)\)') | cut -d'(' -f2 | cut -d')' -f1)"	# Isole le nom de l'architecture après le nom du test.
+APP_LOG=$(echo "${1#http*://}" | sed 's@/@_@g')$ARCH.log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
 
 echo ""
 date

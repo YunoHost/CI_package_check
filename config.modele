@@ -1,0 +1,69 @@
+# Mail de destination des rapports hebdomadaires
+dest=root
+# Format du mail à envoyer, html ou markdown
+type_mail=html
+
+# Durée maximale d'exécution de Package_check avant de déclarer un timeout et de stopper le processus.
+timeout=10800
+
+
+
+## Réglages pour les tests multi-architecture
+# Architecture ~x86-64b~
+# LOCAL ou SSH. Pour utiliser SSH, les informations qui suivent doivent être renseignées.
+> 64.Instance=LOCAL
+
+# Nom de domaine ou IP de la machine distante
+> 64.ssh_host=domain.tld
+
+# Nom de l'utilisateur autorisé à se connecté avec la clé ssh
+> 64.ssh_user=user
+
+# Emplacement de la clé privée pour la connexion ssh
+> 64.ssh_key="path_to_private_key"
+
+# Emplacement de analyseCI.sh sur la machine distante depuis ssh.
+> 64.pcheckci_path="path_to_analyseCI.sh"
+
+# Port ssh
+> 64.ssh_port=22
+
+
+# Architecture ~x86-32b~
+# LOCAL ou SSH. Pour utiliser SSH, les informations qui suivent doivent être renseignées.
+> 32.Instance=LOCAL
+
+# Nom de domaine ou IP de la machine distante
+> 32.ssh_host=domain.tld
+
+# Nom de l'utilisateur autorisé à se connecté avec la clé ssh
+> 32.ssh_user=user
+
+# Emplacement de la clé privée pour la connexion ssh
+> 32.ssh_key="path_to_private_key"
+
+# Emplacement de analyseCI.sh sur la machine distante depuis ssh.
+> 32.pcheckci_path="path_to_analyseCI.sh"
+
+# Port ssh
+> 32.ssh_port=22
+
+
+# Architecture ~ARM~
+# LOCAL ou SSH. Pour utiliser SSH, les informations qui suivent doivent être renseignées.
+> arm.Instance=LOCAL
+
+# Nom de domaine ou IP de la machine distante
+> arm.ssh_host=domain.tld
+
+# Nom de l'utilisateur autorisé à se connecté avec la clé ssh
+> arm.ssh_user=user
+
+# Emplacement de la clé privée pour la connexion ssh
+> arm.ssh_key="path_to_private_key"
+
+# Emplacement de analyseCI.sh sur la machine distante depuis ssh.
+> arm.pcheckci_path="path_to_analyseCI.sh"
+
+# Port ssh
+> arm.ssh_port=22

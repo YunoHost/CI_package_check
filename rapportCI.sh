@@ -1,7 +1,8 @@
 #!/bin/bash
 
-type_mail=html	# Format du mail à envoyer, html ou markdown
-dest=root	# Destinataire du mail. root par défaut pour envoyer à l'admin du serveur.
+dest=$(grep "dest=" "$script_dir/config" | cut -d= -f2)	# Récupère le destinataire du mail
+type_mail=$(grep "type_mail=" "$script_dir/config" | cut -d= -f2)	# Récupère le format du mail
+
 
 # Récupère le dossier du script
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi

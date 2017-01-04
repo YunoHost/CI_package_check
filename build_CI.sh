@@ -17,5 +17,8 @@ sudo cp "$script_dir/CI_package_check_cron" /etc/cron.d/CI_package_check	# Et me
 
 sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check"	# Renseigne l'emplacement du script dans le cron
 
+cp "$script_dir/config.modele" "$script_dir/config"	# Créer le fichier de config
+
+
 sudo rm "$script_dir/CI.lock" # Libère le lock du CI
 echo -e "\e[1mPackage check est prêt à travailler en CI à partir de la liste de tâche work_list.\e[0m"

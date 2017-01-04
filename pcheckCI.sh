@@ -1,9 +1,73 @@
 #!/bin/bash
 
-timeout=10800	# Durée maximale d'exécution de Package_check avant de déclarer un timeout et de stopper le processus.
+timeout=$(grep "timeout=" "$script_dir/config" | cut -d= -f2)	# Durée maximale d'exécution de Package_check avant de déclarer un timeout et de stopper le processus.
 
 # Récupère le dossier du script
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
+
+PCHECK_LOCAL () {
+	echo -n "Exécution du test en local"
+	if [ -n "$ARCH" ]; then
+		echo " pour l'architecture $ARCH."
+	else
+		echo "."
+	fi
+	"$script_dir/package_check/package_check.sh" --bash-mode "$APP" &	# Exécute package_check depuis le sous-dossier local
+	PID_PCHECK=$!	# Récupère le PID de la commande package_check
+	while ps -p $PID_PCHECK | grep -q $PID_PCHECK	# Boucle tant que le process tourne, pour vérifier le temps d'exécution
+	do
+		if [ $(( $(date +%s) - $inittime )) -ge $timeout ]	# Vérifie la durée d'exécution du test
+		then	# Si la durée dépasse le timeout fixé, force l'arrêt du test pour ne pas bloquer la machine
+			kill -s 15 $PID_PCHECK	# Demande l'arrêt du script.
+			"$script_dir/lxc_stop.sh" # Arrête le conteneur LXC.
+			inittime=0	# Indique l'arrêt forcé du script
+		fi
+		sleep 30
+	done
+	cp "$script_dir/package_check/Complete.log" "$script_dir/logs/$complete_log"	# Copie le log complet
+}
+
+PCHECK_SSH () {
+	echo "Exécution du test sur $ssh_host pour l'architecture $ARCH"
+	echo "Connection ssh initiale"
+	ssh $ssh_user@$ssh_host -p $ssh_port -i "$ssh_key" "exit"	# Initie une première connection pour tester ssh
+	if [ "$?" -ne 0 ]; then
+		echo "Échec de connexion ssh"
+	else
+		ssh $ssh_user@$ssh_host -p $ssh_port -i "$ssh_key" "\"$pcheckci_path/analyseCI.sh\" \"$APP\" \"$job\"" | tee "$script_dir/package_check/Complete.log"	# Exécute package_check via ssh sur la machine distante et redirige la sortie sur le log de package_check pour leurrer analyseCI afin d'avoir la progression des tests.
+		scp -P $ssh_port -i "$ssh_key" $ssh_user@$ssh_host:"$pcheckci_path/package_check/Complete.log" "$script_dir/logs/$complete_log"	# Copie le log complet
+	fi
+}
+
+EXEC_PCHECK () {	# Démarre les tests en fonction de l'architecture demandée.
+echo "ARCH=$ARCH"
+	if [ "$ARCH" = "~x86-64b~" ]
+	then
+		arch_pre=64
+	elif [ "$ARCH" = "~x86-32b~" ]
+	then
+		arch_pre=32
+	elif [ "$ARCH" = "~ARM~" ]
+	then
+		arch_pre=arm
+	else	# Par défaut, utilise l'instance locale. Si aucune architecture n'est mentionnée.
+		arch_pre=none
+	fi
+	if [ "$arch_pre" != "none" ]; then	# Si l'architecture est précisée, cherche dans le fichier de config le type d'instance à utiliser.
+		instance=$(grep "> $arch_pre.Instance=" "$script_dir/config" | cut -d= -f2)	# Récupère l'instance, LOCAL ou SSH pour l'architecture
+	fi
+	if [ "$instance" = "SSH" ]
+	then # Si l'instance pour l'archi est configurée sur SSH
+		ssh_host=$(grep "> $arch_pre.ssh_host=" "$script_dir/config" | cut -d= -f2)	# Récupère le nom de domaine ou l'IP de la machine distante
+		ssh_user=$(grep "> $arch_pre.ssh_user=" "$script_dir/config" | cut -d= -f2)	# Récupère le nom de l'utilisateur autorisé à se connecté avec la clé ssh
+		ssh_key=$(grep "> $arch_pre.ssh_key=" "$script_dir/config" | cut -d= -f2)	# Récupère l'emplacement de la clé privée pour la connexion ssh
+		pcheckci_path=$(grep "> $arch_pre.pcheckci_path=" "$script_dir/config" | cut -d= -f2)	# Récupère l'emplacement de analyseCI.sh sur la machine distante depuis ssh.
+		ssh_port=$(grep "> $arch_pre.ssh_port=" "$script_dir/config" | cut -d= -f2)	# Récupère le port ssh
+		PCHECK_SSH	# Démarre le test via ssh
+	else
+		PCHECK_LOCAL	# Démarre le test en local
+	fi
+}
 
 if test -s "$script_dir/work_list"
 then	# Si la liste de test n'est pas vide
@@ -24,30 +88,20 @@ then	# Si la liste de test n'est pas vide
 	id=$(echo $APP | cut -d ';' -f 2)	# Isole l'id
 	job=$(echo $APP | cut -d ';' -f 3)	# Isole le nom du test
 	APP=$(echo $APP | cut -d ';' -f 1)	# Isole l'app
+	ARCH="$(echo $(expr match "$job" '.*\((~.*~)\)') | cut -d'(' -f2 | cut -d')' -f1)"	# Isole le nom de l'architecture après le nom du test.
 
 	echo $id > "$script_dir/CI.lock" # Met en place le lock pour le CI, afin d'éviter des démarrages pendant les wait. Le lock contient le nom du package à tester
 	chmod 666 "$script_dir/CI.lock"	# Donne le droit au script analyseCI de modifier le lock.
 	date
 	echo "Un test avec Package check va démarrer sur $APP (id: $id)"
-	APP_LOG=$(echo "${APP#http*://}" | sed 's@/@_@g').log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
+	APP_LOG=$(echo "${APP#http*://}" | sed 's@/@_@g')$ARCH.log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
+	complete_log=$(basename -s .log "$APP_LOG")_complete.log	# Le complete log est le même que celui des résultats, auquel on ajoute _complete avant le .log
 	rm -f "$script_dir/logs/$APP_LOG"	# Supprime le log du précédent test.
 	inittime=$(date +%s)	# Enregistre l'heure de démarrage du test
-	"$script_dir/package_check/package_check.sh" --bash-mode "$APP" > "$script_dir/package_check/Test_results_cli.log" 2>&1 &	# Exécute package_check sur la première adresse de la liste, et passe l'exécution en arrière plan.
-	PID_PCHECK=$!	# Récupère le PID de la commande package_check
-	while ps -p $PID_PCHECK | grep -q $PID_PCHECK	# Boucle tant que le process tourne, pour vérifier le temps d'exécution
-	do
-		if [ $(( $(date +%s) - $inittime )) -ge $timeout ]	# Vérifie la durée d'exécution du test
-		then	# Si la durée dépasse le timeout fixé, force l'arrêt du test pour ne pas bloquer la machine
-			kill -s 15 $PID_PCHECK	# Demande l'arrêt du script.
-			"$script_dir/lxc_stop.sh" # Arrête le conteneur LXC.
-			inittime=0	# Indique l'arrêt forcé du script
-		fi
-		sleep 30
-	done
+	EXEC_PCHECK > "$script_dir/package_check/Test_results_cli.log" 2>&1	# Lance l'exécution de package_check en fonction de l'architecture processeur indiquée.
+
 	sed -i 1d "$script_dir/work_list"	# Supprime la première ligne de la liste
 	cp "$script_dir/package_check/Test_results_cli.log" "$script_dir/logs/$APP_LOG"	# Copie le log des résultats
-	complete_log=$(basename -s .log "$APP_LOG")_complete.log	# Le complete log est le même que celui des résultats, auquel on ajoute _complete avant le .log
-	cp "$script_dir/package_check/Complete.log" "$script_dir/logs/$complete_log"	# Et le log complet
 	if test -e "$script_dir/auto_build/auto.conf"	# Si le fichier de conf de auto_build existe, c'est une instance avec accès en ligne aux logs
 	then
 		DOMAIN=$(cat "$script_dir/auto_build/auto.conf" | grep DOMAIN= | cut -d '=' -f2)
