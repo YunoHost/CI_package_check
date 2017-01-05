@@ -9,7 +9,7 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 jenkins_job_path="/var/lib/jenkins/jobs"
 # jenkins_url=$(sudo yunohost app map -a jenkins | cut -d':' -f1)
 
-jenkins_url=$(cat "$script_dir/auto.conf" | grep DOMAIN= | cut -d '=' -f2)/$(cat "$script_dir/auto.conf" | grep DOMAIN= | cut -d '=' -f2)
+jenkins_url=$(cat "$script_dir/auto.conf" | grep DOMAIN= | cut -d '=' -f2)/$(cat "$script_dir/auto.conf" | grep CI_PATH= | cut -d '=' -f2)
 dest=$(cat "$script_dir/auto.conf" | grep MAIL_DEST= | cut -d '=' -f2)
 
 templist="$script_dir/templist"
@@ -21,7 +21,7 @@ JENKINS_BUILD_JOB () {
 	else	# Sinon utilise le job principal
 		sed "s@__DAY__@$(( $RANDOM % 30 +1 ))@g" "$script_dir/jenkins/jenkins_job.xml" > "$script_dir/jenkins/jenkins_job_load.xml"	# Détermine un jour de test aléatoire. Entre 1 et 30.
 	fi
-	sed -i "s@__DEPOTGIT__@$app@g" "$script_dir/jenkins/jenkins_job_load.xml"	# Renseigne le dépôt git dans le fichier de job de jenkins, et créer un nouveau fichier pour stocker les nouvelles informations
+	sed -i "s@__DEPOTGIT__@$depot@g" "$script_dir/jenkins/jenkins_job_load.xml"	# Renseigne le dépôt git dans le fichier de job de jenkins, et créer un nouveau fichier pour stocker les nouvelles informations
 	sed -i "s@__PATH__@$(dirname "$script_dir")@g" "$script_dir/jenkins/jenkins_job_load.xml"	# Renseigne le chemin du script en prenant le dossier parent de ce script
 	sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$jenkins_url/ -i "$script_dir/jenkins/jenkins_key" create-job "$appname" < "$script_dir/jenkins/jenkins_job_load.xml"	# Créer un job sur jenkins à partir du fichier xml
 }
@@ -36,6 +36,7 @@ JENKINS_REMOVE_JOB () {
 job_path=$jenkins_job_path	# Emplacement des fichiers de job, pour les archiver avant leur suppression
 
 BUILD_JOB () {
+	depot=$(echo "$app" | cut -d';' -f1)	# Isole le dépôt de l'application
 	JENKINS_BUILD_JOB
 }
 
@@ -67,13 +68,13 @@ PARSE_LIST () {
 ($(echo ${1:0:1} | tr [:lower:] [:upper:])${1:1})"	# Isole le nom de l'application dans l'adresse github. Et la suffixe de (Community ou Official).
 # Le `tr` sert seulement à passer le premier caractère en majuscule
 		echo "$app;$appname" >> "$templist"	# Écrit la liste des apps avec un format plus lisible pour le script
-		if [ ${x64:0:1} -eq 1 ]; then
+		if [ "${x64:0:1}" == "1" ]; then
 			echo "$app;$appname (~x86-64b~)" >> "$templist"	# Ajoute une ligne pour le test sur architecture 64 bits
 		fi
-		if [ ${x32:0:1} -eq 1 ]; then
+		if [ "${x32:0:1}" == "1" ]; then
 			echo "$app;$appname (~x86-32b~)" >> "$templist"	# Ajoute une ligne pour le test sur architecture 32 bits
 		fi
-		if [ ${arm:0:1} -eq 1 ]; then
+		if [ "${arm:0:1}" == "1" ]; then
 			echo "$app;$appname (~ARM~)" >> "$templist"	# Ajoute une ligne pour le test sur architecture 64 bits
 		fi
 	done <<< "$(eval $grep_cmd)"
