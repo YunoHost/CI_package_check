@@ -1,9 +1,9 @@
 #!/bin/bash
 
-timeout=$(grep "timeout=" "$script_dir/config" | cut -d= -f2)	# Durée maximale d'exécution de Package_check avant de déclarer un timeout et de stopper le processus.
-
 # Récupère le dossier du script
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
+
+timeout=$(grep "timeout=" "$script_dir/config" | cut -d= -f2)	# Durée maximale d'exécution de Package_check avant de déclarer un timeout et de stopper le processus.
 
 PCHECK_LOCAL () {
 	echo -n "Exécution du test en local"
@@ -40,7 +40,6 @@ PCHECK_SSH () {
 }
 
 EXEC_PCHECK () {	# Démarre les tests en fonction de l'architecture demandée.
-echo "ARCH=$ARCH"
 	if [ "$ARCH" = "~x86-64b~" ]
 	then
 		arch_pre=64
