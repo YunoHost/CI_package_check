@@ -1,11 +1,10 @@
 #!/bin/bash
 
-dest=$(grep "dest=" "$script_dir/config" | cut -d= -f2)	# Récupère le destinataire du mail
-type_mail=$(grep "type_mail=" "$script_dir/config" | cut -d= -f2)	# Récupère le format du mail
-
-
 # Récupère le dossier du script
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
+
+dest=$(grep "dest=" "$script_dir/config" | cut -d= -f2)	# Récupère le destinataire du mail
+type_mail=$(grep "type_mail=" "$script_dir/config" | cut -d= -f2)	# Récupère le format du mail
 
 mail_md="$script_dir/CR_mail.md"
 mail_html="$script_dir/CR_mail.html"
