@@ -32,57 +32,65 @@ do
 	then
 		job=$(grep "^-> Test " < "$script_dir/logs/$ligne")	# Récupère le nom du test, ajouté au début du log
 		job=${job#-> Test }	# Supprime "-> Test " pour garder uniquement le nom du test
-		global_result=$(grep "FAIL$" "$script_dir/logs/$ligne" | grep -v "Package linter" | grep -c "FAIL$")	# Récupère la sortie du grep pour savoir si des FAIL sont sortis sur le test
-		if grep "PCHECK_AVORTED" "$script_dir/logs/$ligne" > /dev/null; then
-			global_result=-1	# Indique que package_check a été arrêté par un timeout.
-		fi
-		fail=$(grep "FAIL$" "$script_dir/logs/$ligne" | cut -d ':' -f1)	# Récupère la liste des tests échoués en retirant les FAIL
-		if [ "$global_result" -eq "-1" ]; then
-			fail=$(echo $fail; grep "PCHECK_AVORTED" "$script_dir/logs/$ligne" | cut -d'(' -f 1)	# Ajoute l'erreur de timeout aux tests échoués.
-		fi
-		score=$(grep "Notes de r.*sultats: .*/20" "$script_dir/logs/$ligne" | grep -o "[[:digit:]]\+/20.*")	# Récupère le (ou les) notes de tests
-
-		echo -en "\n### Test $job:" >> "$mail_md"
-		echo -n "<br><strong>Test $job: <font color=" >> "$mail_html"
-		if [ "$global_result" -eq 0 ]; then
-			echo " **SUCCESS** :white_check_mark:" >> "$mail_md"
-			echo "green>SUCCESS" >> "$mail_html"
-		else
-			echo " **FAIL** :negative_squared_cross_mark:" >> "$mail_md"
-			echo "red>FAIL" >> "$mail_html"
-		fi
-		echo -e "</font>\n</strong>\n<br>" >> "$mail_html"
-		if [ -n "$fail" ]; then
-			echo "Erreurs sur:" >> "$mail_md" | tee -a "$mail_html"
-			echo "" >> "$mail_md"
-			echo "<ul>" >> "$mail_html"
-			echo "$fail" | sed 's/^.*/<li> &/g' | sed 's/.*$/&<\/li>/g' >> "$mail_html"	# Ajoute li et /li au début et à la fin de chaque ligne
-			echo "$fail" | sed 's/^.*/- &/g' >> "$mail_md"	# Ajoute un tiret au début de chaque ligne
-			echo "</ul>" >> "$mail_html"
-		fi
-		echo "" >> "$mail_md"
-		while read <&3 linescore
-		do
-			if test -n "$linescore"
-			then
-				linescore_note=$(echo $linescore | cut -d'/' -f1)
-				echo -n "<font color=" >> "$mail_html"
-				if [ "$linescore_note" -le 10 ]; then
-					echo -n "red" >> "$mail_html"
-				elif [ "$linescore_note" -le 15 ]; then
-					echo -n "orange" >> "$mail_html"
-				elif [ "$linescore_note" -gt 15 ]; then
-					echo -n "green" >> "$mail_html"
-				fi
-				echo "><strong>$linescore</strong></font><br>" >> "$mail_html"
-				echo "**$linescore**" >> "$mail_md"
-			fi
-		done 3<<< "$(echo "$score")"
-		echo "<br>" >> "$mail_html"
-		echo "" >> "$mail_md"
+		echo "$job:$ligne"	>> "$script_dir/sortliste"	# Inscrit dans le fichier temporaire le nom du job suivi du nom du log.
 	fi
 done <<< "$(ls -1 "$script_dir/logs")"
+sort "$script_dir/sortliste" -o "$script_dir/sortliste"	# Tri la liste des apps
 
+while read ligne
+do
+	job=${ligne%%:*}	# Supprime après : pour garder uniquement le job.
+	ligne=${ligne#*:}	# Supprime avant : pour garder uniquement le nom du log.
+	global_result=$(grep "FAIL$" "$script_dir/logs/$ligne" | grep -v "Package linter" | grep -c "FAIL$")	# Récupère la sortie du grep pour savoir si des FAIL sont sortis sur le test
+	if grep "PCHECK_AVORTED" "$script_dir/logs/$ligne" > /dev/null; then
+		global_result=-1	# Indique que package_check a été arrêté par un timeout.
+	fi
+	fail=$(grep "FAIL$" "$script_dir/logs/$ligne" | cut -d ':' -f1)	# Récupère la liste des tests échoués en retirant les FAIL
+	if [ "$global_result" -eq "-1" ]; then
+		fail=$(echo $fail; grep "PCHECK_AVORTED" "$script_dir/logs/$ligne" | cut -d'(' -f 1)	# Ajoute l'erreur de timeout aux tests échoués.
+	fi
+	score=$(grep "Notes de r.*sultats: .*/20" "$script_dir/logs/$ligne" | grep -o "[[:digit:]]\+/20.*")	# Récupère le (ou les) notes de tests
+
+	echo -en "\n### Test $job:" >> "$mail_md"
+	echo -n "<br><strong>Test $job: <font color=" >> "$mail_html"
+	if [ "$global_result" -eq 0 ]; then
+		echo " **SUCCESS** :white_check_mark:" >> "$mail_md"
+		echo "green>SUCCESS" >> "$mail_html"
+	else
+		echo " **FAIL** :negative_squared_cross_mark:" >> "$mail_md"
+		echo "red>FAIL" >> "$mail_html"
+	fi
+	echo -e "</font>\n</strong>\n<br>" >> "$mail_html"
+	if [ -n "$fail" ]; then
+		echo "Erreurs sur:" >> "$mail_md" | tee -a "$mail_html"
+		echo "" >> "$mail_md"
+		echo "<ul>" >> "$mail_html"
+		echo "$fail" | sed 's/^.*/<li> &/g' | sed 's/.*$/&<\/li>/g' >> "$mail_html"	# Ajoute li et /li au début et à la fin de chaque ligne
+		echo "$fail" | sed 's/^.*/- &/g' >> "$mail_md"	# Ajoute un tiret au début de chaque ligne
+		echo "</ul>" >> "$mail_html"
+	fi
+	echo "" >> "$mail_md"
+	while read <&3 linescore
+	do
+		if test -n "$linescore"
+		then
+			linescore_note=$(echo $linescore | cut -d'/' -f1)
+			echo -n "<font color=" >> "$mail_html"
+			if [ "$linescore_note" -le 10 ]; then
+				echo -n "red" >> "$mail_html"
+			elif [ "$linescore_note" -le 15 ]; then
+				echo -n "orange" >> "$mail_html"
+			elif [ "$linescore_note" -gt 15 ]; then
+				echo -n "green" >> "$mail_html"
+			fi
+			echo "><strong>$linescore</strong></font><br>" >> "$mail_html"
+			echo "**$linescore**" >> "$mail_md"
+		fi
+	done 3<<< "$(echo "$score")"
+	echo "<br>" >> "$mail_html"
+	echo "" >> "$mail_md"
+done < "$script_dir/sortliste"	# Reprend à partir de la liste triée.
+rm "$script_dir/sortliste"
 
 sed -i 's/.\[\+[[:digit:]]\+m//g' "$mail_md" "$mail_html"	# Supprime les commandes de couleurs et de formatages de texte formé par \e[xxm
 
