@@ -42,7 +42,8 @@ BUILD_JOB () {
 
 REMOVE_JOB () {
 	JENKINS_REMOVE_JOB
-	APP_LOG=$(echo "${app#http*://}" | sed 's@/@_@g').log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
+	depot=$(echo "$app" | cut -d';' -f1)	# Isole le dépôt de l'application
+	APP_LOG=$(echo "${depot#http*://}" | sed 's@/@_@g').log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
 	complete_log=$(basename -s .log "$APP_LOG")_complete.log	# Le complete log est le même que celui des résultats, auquel on ajoute _complete avant le .log
 	sudo rm "$script_dir/../logs/$APP_LOG"
 	sudo rm "$script_dir/../logs/$complete_log"
