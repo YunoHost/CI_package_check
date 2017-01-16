@@ -118,7 +118,7 @@ touch "$script_dir/official_app"
 echo -e "\e[1mCréation des jobs\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 sudo "$script_dir/list_app_ynh.sh"
 
-# Met en place le cron pour maintenir à jour la liste des jobs.
+# Met en place le cron pour maintenir à jour la liste des jobs. Et le cron pour changer le niveau des apps
 echo -e "\e[1mAjout de la tâche cron\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 cat "$script_dir/CI_package_check_cron" | sudo tee -a "/etc/cron.d/CI_package_check" > /dev/null	# Ajoute le cron à la suite du cron de CI déjà en place.
 sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check"	# Renseigne l'emplacement du script dans le cron
