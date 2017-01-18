@@ -3,6 +3,11 @@
 # Récupère le dossier du script
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
+CI=jenkins
+GET_CI_URL () {
+	sudo yunohost app map | grep $CI -m1 | cut -d: -f1
+}
+
 touch "$script_dir/CI.lock"	# Place le lock du CI, pour éviter des démarrages intempestifs avant la fin de l'installation
 
 touch "$script_dir/work_list"	# Créer le fichier work_list
@@ -19,6 +24,8 @@ sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check"	# Renseign
 
 cp "$script_dir/config.modele" "$script_dir/config"	# Créer le fichier de config
 
+GET_CI_URL	# Détermine l'url de l'outil de CI
+sed -i "s@CI_URL=@&$ci_url@g" "$script_dir/config"	# Ajoute l'url supposée du CI
 
 sudo rm "$script_dir/CI.lock" # Libère le lock du CI
 echo -e "\e[1mPackage check est prêt à travailler en CI à partir de la liste de tâche work_list.\e[0m"

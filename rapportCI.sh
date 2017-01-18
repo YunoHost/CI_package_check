@@ -5,9 +5,20 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 
 dest=$(grep "dest=" "$script_dir/config" | cut -d= -f2)	# Récupère le destinataire du mail
 type_mail=$(grep "type_mail=" "$script_dir/config" | cut -d= -f2)	# Récupère le format du mail
+ci_url=$(grep "CI_URL=" "$script_dir/config" | cut -d= -f2)	# Récupère l'adresse du logiciel de CI
 
 mail_md="$script_dir/CR_mail.md"
 mail_html="$script_dir/CR_mail.html"
+
+JENKINS_JOB_URL () {
+	job_url=https://${ci_url}/job/${job}/lastBuild/console
+}
+
+BUILD_JOB_URL () {
+	JENKINS_JOB_URL
+	job_url=$(echo $job_url | sed 's/ /%20/g')	# Remplace les espaces
+	job_url=$(echo $job_url | sed 's/(/%28/g' | sed 's/)/%29/g')	# Remplace les parenthèses
+}
 
 echo "## Compte rendu hebdomadaire des tests d'intégration continue." > "$mail_md"
 
@@ -45,14 +56,16 @@ do
 	if grep "PCHECK_AVORTED" "$script_dir/logs/$ligne" > /dev/null; then
 		global_result=-1	# Indique que package_check a été arrêté par un timeout.
 	fi
-	fail=$(grep "FAIL$" "$script_dir/logs/$ligne" | cut -d ':' -f1)	# Récupère la liste des tests échoués en retirant les FAIL
+	results=$(grep "Notes de résultats" "$script_dir/logs/$ligne" -m1 -B30 | grep "FAIL$\|SUCCESS$")	# Isole le premier résultat de test et récupère la liste des tests effectués
 	if [ "$global_result" -eq "-1" ]; then
-		fail=$(echo $fail; grep "PCHECK_AVORTED" "$script_dir/logs/$ligne" | cut -d'(' -f 1)	# Ajoute l'erreur de timeout aux tests échoués.
+		results="$(echo $results; grep "PCHECK_AVORTED" "$script_dir/logs/$ligne" | cut -d'(' -f 1): FAIL"	# Ajoute l'erreur de timeout aux tests échoués.
 	fi
 	score=$(grep "Notes de r.*sultats: .*/20" "$script_dir/logs/$ligne" | grep -o "[[:digit:]]\+/20.*")	# Récupère le (ou les) notes de tests
+	level=$(tac "$script_dir/logs/$ligne" | grep "Niveau de l'application: " -m1  | cut -d: -f2)
 
-	echo -en "\n### Test $job:" >> "$mail_md"
-	echo -n "<br><strong>Test $job: <font color=" >> "$mail_html"
+	BUILD_JOB_URL	# Génère l'url du job sur le logiciel de CI
+	echo -en "\n### Test [$job]($job_url):" >> "$mail_md"
+	echo -n "<br><strong><a href="$job_url">Test $job: </a><font color=" >> "$mail_html"
 	if [ "$global_result" -eq 0 ]; then
 		echo " **SUCCESS** :white_check_mark:" >> "$mail_md"
 		echo "green>SUCCESS" >> "$mail_html"
@@ -61,32 +74,50 @@ do
 		echo "red>FAIL" >> "$mail_html"
 	fi
 	echo -e "</font>\n</strong>\n<br>" >> "$mail_html"
-	if [ -n "$fail" ]; then
-		echo "Erreurs sur:" >> "$mail_md" | tee -a "$mail_html"
-		echo "" >> "$mail_md"
+	results=$(echo "$results" | sed 's/\t//g')	# Efface les tabulations dans les résultats
+	results=$(echo "$results" | sed 's/: /&**/g' | sed 's/.*$/&**/g')	# Met en gras le résultat lui-même
+	if echo "$results" | grep -q "SUCCESS"; then
+		echo "" >> "$mail_md"	# Saut de ligne seulement si il y a des succès.
 		echo "<ul>" >> "$mail_html"
-		echo "$fail" | sed 's/^.*/<li> &/g' | sed 's/.*$/&<\/li>/g' >> "$mail_html"	# Ajoute li et /li au début et à la fin de chaque ligne
-		echo "$fail" | sed 's/^.*/- &/g' >> "$mail_md"	# Ajoute un tiret au début de chaque ligne
+		echo "$results" | grep "SUCCESS" | sed 's/^.*/- &/g' >> "$mail_md"	# Ajoute un tiret au début de chaque ligne et affiche les résultats
+		echo "$results" | grep "SUCCESS" | sed 's/^.*/<li> &/g' | sed 's/.*$/&<\/li>/g' \
+		| sed 's/: \*\*/: <strong>/g' | sed 's@\*\*@</strong>@g' >> "$mail_html"	# Ajoute li et /li au début et à la fin de chaque ligne
+		echo "</ul>" >> "$mail_html"
+	fi
+	if echo "$results" | grep -q "FAIL"; then
+		echo "" >> "$mail_md"	# Saut de ligne seulement si il y a des échecs.
+		echo "<ul>" >> "$mail_html"
+		echo "$results" | grep "FAIL" | sed 's/^.*/- &/g' >> "$mail_md"	# Ajoute un tiret au début de chaque ligne et affiche les résultats
+		echo "$results" | grep "FAIL" | sed 's/^.*/<li> &/g' | sed 's/.*$/&<\/li>/g' \
+		| sed 's/: \*\*/: <strong>/g' | sed 's@\*\*@</strong>@g' >> "$mail_html"	# Ajoute li et /li au début et à la fin de chaque ligne
 		echo "</ul>" >> "$mail_html"
 	fi
 	echo "" >> "$mail_md"
-	while read <&3 linescore
-	do
-		if test -n "$linescore"
-		then
-			linescore_note=$(echo $linescore | cut -d'/' -f1)
-			echo -n "<font color=" >> "$mail_html"
-			if [ "$linescore_note" -le 10 ]; then
-				echo -n "red" >> "$mail_html"
-			elif [ "$linescore_note" -le 15 ]; then
-				echo -n "orange" >> "$mail_html"
-			elif [ "$linescore_note" -gt 15 ]; then
-				echo -n "green" >> "$mail_html"
+	if [ -n "$level" ]
+	then
+		echo -n "Niveau de l'application:" >> "$mail_md"
+		echo -n "Niveau de l'application:" >> "$mail_html"
+		echo "**$level**" >> "$mail_md"
+		echo "<strong>$level</strong><br>" >> "$mail_html"
+	else
+		while read <&3 linescore
+		do
+			if test -n "$linescore"
+			then
+				linescore_note=$(echo $linescore | cut -d'/' -f1)
+				echo -n "<font color=" >> "$mail_html"
+				if [ "$linescore_note" -le 10 ]; then
+					echo -n "red" >> "$mail_html"
+				elif [ "$linescore_note" -le 15 ]; then
+					echo -n "orange" >> "$mail_html"
+				elif [ "$linescore_note" -gt 15 ]; then
+					echo -n "green" >> "$mail_html"
+				fi
+				echo "><strong>$linescore</strong></font><br>" >> "$mail_html"
+				echo "**$linescore**" >> "$mail_md"
 			fi
-			echo "><strong>$linescore</strong></font><br>" >> "$mail_html"
-			echo "**$linescore**" >> "$mail_md"
-		fi
-	done 3<<< "$(echo "$score")"
+		done 3<<< "$(echo "$score")"
+	fi
 	echo "<br>" >> "$mail_html"
 	echo "" >> "$mail_md"
 done < "$script_dir/sortliste"	# Reprend à partir de la liste triée.
