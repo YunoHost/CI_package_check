@@ -25,8 +25,7 @@ do
 		app_level=$(tac "$script_dir/../logs/$line" | grep "Niveau de l'application: " -m1)	# Tac affiche le fichier depuis la fin, et grep limite la recherche au premier terme trouvé pour ne prendre que le dernier résultat.
 		if [ -n "$app_level" ]
 		then	# Si le log contient un niveau pour l'app
-			app_level="$(echo $(expr match "${app_level:1:-1}" '.*\(.[0-9]*\)'))"	# Extrait uniquement la valeur numérique du résultat avec match. ${app_level:1:-1} efface le retour chariot qui pertube l'echo
-# 			app_level="$(echo $(expr match "$app_level" '.*\(.[0-9]*\)'))"	# Extrait uniquement la valeur numérique du résultat avec match.
+ 			app_level="$(echo $(expr match "$app_level" '.*\(.[0-9]*\)'))"	# Extrait uniquement la valeur numérique du résultat avec match.
 			./change_level.py ${list,,}.json $app $app_level	# Appel le script change_level.py pour modifier le niveau de l'app dans la liste. ${list,,} permet de passer la variable en minuscule
 		fi
 	fi
