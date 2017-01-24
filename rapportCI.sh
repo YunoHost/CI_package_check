@@ -43,10 +43,16 @@ do
 	then
 		job=$(grep "^-> Test " < "$script_dir/logs/$ligne")	# Récupère le nom du test, ajouté au début du log
 		job=${job#-> Test }	# Supprime "-> Test " pour garder uniquement le nom du test
+		if echo "$job" | grep -q " (Official)"; then
+			echo -n "0." >> "$script_dir/sortliste"	# Préfixe les app officielle de 0
+		else
+			echo -n "1." >> "$script_dir/sortliste" # Et les autre de 1, pour forcer le tri des apps officielles au début de la liste.
+		fi
 		echo "$job:$ligne"	>> "$script_dir/sortliste"	# Inscrit dans le fichier temporaire le nom du job suivi du nom du log.
 	fi
 done <<< "$(ls -1 "$script_dir/logs")"
 sort "$script_dir/sortliste" -o "$script_dir/sortliste"	# Tri la liste des apps
+sed -i 's/^[0-1].//g' "$script_dir/sortliste"	# Supprime le 0. ou 1. au début de chaque ligne.
 
 while read ligne
 do
@@ -61,7 +67,7 @@ do
 		results="$(echo $results; grep "PCHECK_AVORTED" "$script_dir/logs/$ligne" | cut -d'(' -f 1): FAIL"	# Ajoute l'erreur de timeout aux tests échoués.
 	fi
 	score=$(grep "Notes de r.*sultats: .*/20" "$script_dir/logs/$ligne" | grep -o "[[:digit:]]\+/20.*")	# Récupère le (ou les) notes de tests
-	level=$(tac "$script_dir/logs/$ligne" | grep "Niveau de l'application: " -m1  | cut -d: -f2)
+	level=$(tac "$script_dir/logs/$ligne" | grep "Niveau de l'application: " -m1  | cut -d: -f2 | cut -d' ' -f2)
 
 	BUILD_JOB_URL	# Génère l'url du job sur le logiciel de CI
 	echo -en "\n### Test [$job]($job_url):" >> "$mail_md"
@@ -85,8 +91,8 @@ do
 		echo "</ul>" >> "$mail_html"
 	fi
 	if echo "$results" | grep -q "FAIL"; then
-		echo "" >> "$mail_md"	# Saut de ligne seulement si il y a des échecs.
-		echo "<ul>" >> "$mail_html"
+		echo "-" >> "$mail_md"  # Ajoute un tiret en lieu de saut de ligne, pour ne pas casser la syntaxe des listes markdown.
+		echo "<ul>" >> "$mail_html"	# Saut de ligne seulement si il y a des échecs.
 		echo "$results" | grep "FAIL" | sed 's/^.*/- &/g' >> "$mail_md"	# Ajoute un tiret au début de chaque ligne et affiche les résultats
 		echo "$results" | grep "FAIL" | sed 's/^.*/<li> &/g' | sed 's/.*$/&<\/li>/g' \
 		| sed 's/: \*\*/: <strong>/g' | sed 's@\*\*@</strong>@g' >> "$mail_html"	# Ajoute li et /li au début et à la fin de chaque ligne
@@ -95,8 +101,8 @@ do
 	echo "" >> "$mail_md"
 	if [ -n "$level" ]
 	then
-		echo -n "Niveau de l'application:" >> "$mail_md"
-		echo -n "Niveau de l'application:" >> "$mail_html"
+		echo -n "Niveau de l'application: " >> "$mail_md"
+		echo -n "Niveau de l'application: " >> "$mail_html"
 		echo "**$level**" >> "$mail_md"
 		echo "<strong>$level</strong><br>" >> "$mail_html"
 	else
