@@ -3,6 +3,8 @@
 # Récupère le dossier du script
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
+dest=$(cat "$script_dir/auto.conf" | grep MAIL_DEST= | cut -d '=' -f2)
+
 sudo rm -r "$script_dir/apps"	# Supprime le précédent clone de YunoHost/apps
 git clone -q git@github.com:YunoHost/apps.git "$script_dir/apps"	# Récupère la dernière version de https://github.com/YunoHost/apps
 
@@ -31,9 +33,9 @@ do
 	fi
 done <<< "$(ls -1 "$script_dir/../logs")"
 
-git diff -U2 --raw	# Affiche les changements (2 lignes de contexte suffisent à voir l'app)
-git add --all *.json	# Ajoute les modifications des listes au prochain commit
-git commit -q -m "Update app's level"
+git diff -U2 --raw | tee "$script_dir/mail_content"	# Affiche les changements (2 lignes de contexte suffisent à voir l'app)
+git add --all *.json | tee -a "$script_dir/mail_content"	# Ajoute les modifications des listes au prochain commit
+git commit -q -m "Update app's level" | tee -a "$script_dir/mail_content"
 
 # Git doit être configuré sur la machine.
 # git config --global user.email "MAIL..."
@@ -43,4 +45,6 @@ git commit -q -m "Update app's level"
 # IdentityFile ~/.ssh/github
 # Dans le config ssh
 # Et la clé doit être enregistrée dans le compte github de ynh-CI-bot
-git push -q -u origin modify_level
+git push -q -u origin modify_level | tee -a "$script_dir/mail_content"
+
+mail -s "Modification du niveau des applications" "$dest" < "$script_dir/mail_content"	# Envoi le log de git par mail.
