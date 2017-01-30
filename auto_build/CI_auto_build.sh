@@ -9,6 +9,9 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 LOG_BUILD_AUTO_CI="$script_dir/Log_build_auto_ci.log"
 CI_USER=ynhci
 
+DOMAIN=$1
+YUNO_PWD=$2
+
 # JENKINS
 SETUP_JENKINS () {
 	CI=jenkins	# Utilisateur avec lequel s'exécute jenkins
@@ -92,17 +95,40 @@ then
 	cd /tmp/install_script; sudo ./install_yunohost -a | tee "$LOG_BUILD_AUTO_CI" 2>&1
 
 	echo -e "\e[1m> Post install Yunohost\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
-	sudo yunohost tools postinstall
+	if [ -n "$DOMAIN" ]; then
+		domain_arg="--domain $DOMAIN"
+	else
+		domain_arg=""
+	fi
+        if [ -n "$YUNO_PWD" ]; then
+                pass_arg="--password $YUNO_PWD"
+        else
+                pass_arg=""
+        fi
+	sudo yunohost tools postinstall $domain_arg $pass_arg
 fi
 
-DOMAIN=$(sudo yunohost domain list -l 1 | cut -d' ' -f2)	# Récupère le premier domaine diponible dans Yunohost
+if [ -z "$DOMAIN" ]; then
+	DOMAIN=$(sudo yunohost domain list -l 1 | cut -d' ' -f2)	# Récupère le premier domaine diponible dans Yunohost
+fi
 
 echo "127.0.0.1 $DOMAIN	#CI_APP" | sudo tee -a /etc/hosts	# Renseigne le domain dans le host
 
-if ! sudo yunohost user list --output-as json | grep -q "\"username\": \"$CI_USER\""	# Vérifie si l'utilisateur existe
+if [ -n "$YUNO_PWD" ]; then
+        pass_arg="--admin-password $YUNO_PWD"
+else
+        pass_arg=""
+fi
+
+if ! sudo yunohost user list --output-as json $pass_arg | grep -q "\"username\": \"$CI_USER\""	# Vérifie si l'utilisateur existe
 then
+	if [ -n "$YUNO_PWD" ]; then
+		pass_arg="--password $YUNO_PWD --admin-password $YUNO_PWD"
+	else
+		pass_arg=""
+	fi
 	echo -e "\e[1m> Création d'un utilisateur YunoHost\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
-	sudo yunohost user create --firstname "$CI_USER" --mail "$CI_USER@$DOMAIN" --lastname "$CI_USER" "$CI_USER"
+	sudo yunohost user create --firstname "$CI_USER" --mail "$CI_USER@$DOMAIN" --lastname "$CI_USER" "$CI_USER" $pass_arg
 fi
 
 # Installation du logiciel de CI qui servira d'interface
