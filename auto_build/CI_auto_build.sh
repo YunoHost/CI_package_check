@@ -114,10 +114,6 @@ echo -e "\e[1mMise en place de Package check à l'aide des scripts d'intégratio
 touch "$script_dir/community_app"
 touch "$script_dir/official_app"
 
-# Liste les apps Yunohost et créer les jobs à l'aide du script list_app_ynh.sh
-echo -e "\e[1mCréation des jobs\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
-sudo "$script_dir/list_app_ynh.sh"
-
 # Met en place le cron pour maintenir à jour la liste des jobs. Et le cron pour changer le niveau des apps
 echo -e "\e[1mAjout de la tâche cron\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 cat "$script_dir/CI_package_check_cron" | sudo tee -a "/etc/cron.d/CI_package_check" > /dev/null	# Ajoute le cron à la suite du cron de CI déjà en place.
@@ -154,6 +150,10 @@ DOMAIN=$DOMAIN
 }
 EOF
 echo -e "\e[1mLe fichier de configuration a été créée dans $script_dir/auto.conf\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+
+# Liste les apps Yunohost et créer les jobs à l'aide du script list_app_ynh.sh
+echo -e "\e[1mCréation des jobs\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+sudo "$script_dir/list_app_ynh.sh"
 
 echo -e "\e[1mVérification des droits d'accès\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 if sudo su -l $CI -c "ls \"$script_dir\"" > /dev/null 2<&1
