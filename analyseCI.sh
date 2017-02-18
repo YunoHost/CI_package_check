@@ -35,21 +35,21 @@ done
 echo ""
 date
 echo "Package_check est actuellement en train de tester le package..."
-nb_print=0
-while ! test -e "$script_dir/logs/$APP_LOG"; do
-	sleep 30	# Attend que le log soit recréé par le script pcheckCI.sh, ce qui indiquera la fin du test sur ce package.
-	if [ "$nb_print" -gt 1 ]; then
-		cat "$script_dir/package_check/Complete.log" | grep ">>.*Test" | sed "1,"$nb_print"d"	# Affiche les titres de test, en supprimant autant de ligne trouvée que de test déjà affichés. Pour afficher seulement les nouveaux tests.
+log_line=0
+log_cli="$script_dir/package_check/Test_results_cli.log"
+while ! test -e "$script_dir/logs/$APP_LOG"; do	# Attend que le log soit recréé par le script pcheckCI.sh, ce qui indiquera la fin du test sur ce package.
+	sleep 10	# Actualise toute les 10 secondes
+	if [ "$log_line" -eq 0 ]; then
+		cat "$log_cli"	# Affiche simplement le log si c'est la première fois
 	else
-		cat "$script_dir/package_check/Complete.log" | grep ">>.*Test"	# Si il n'y a qu'un seul titre de test trouvé, affiche simplement.
+		tail -n +$(( $log_line + 1 )) "$log_cli"	# Affiche le log à partir des lignes déjà affichées.
 	fi
-	nb_print=$(cat "$script_dir/package_check/Complete.log" | grep -c ">>.*Test")	# Compte le nombre de titre de test déjà affichés.
+	log_line=$(wc -l "$log_cli" | cut -d ' ' -f 1)	# Compte le nombre de lignes du log déjà affichées.
 done
 echo ""
 date
 echo -ne "Fin du test."
 
-cat "$script_dir/logs/$APP_LOG"	# Affiche le log dans le CI
 echo -n "" > "$script_dir/CI.lock"	# Vide le fichier lock pour indiquer qu'il peux être supprimé. (Ce script n'a pas suffisamment de droit pour supprimer lui-même le fichier.)
 
 if grep "FAIL$" "$script_dir/logs/$APP_LOG" | grep -v "Package linter" | grep -q "FAIL$" || grep "PCHECK_AVORTED" "$script_dir/logs/$APP_LOG"
