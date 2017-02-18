@@ -24,7 +24,7 @@ sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check"	# Renseign
 
 cp "$script_dir/config.modele" "$script_dir/config"	# Créer le fichier de config
 
-GET_CI_URL	# Détermine l'url de l'outil de CI
+ci_url=$(GET_CI_URL)	# Détermine l'url de l'outil de CI
 sed -i "s@CI_URL=@&$ci_url@g" "$script_dir/config"	# Ajoute l'url supposée du CI
 
 sudo rm "$script_dir/CI.lock" # Libère le lock du CI
