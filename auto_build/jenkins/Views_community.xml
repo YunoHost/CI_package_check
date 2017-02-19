@@ -17,6 +17,6 @@
 		<hudson.views.LastDurationColumn/>
 		<hudson.views.BuildButtonColumn/>
 	</columns>
-	<includeRegex>.*(Community).*</includeRegex>
+	<includeRegex>.*(Community)(?!.*(testing)|.*(unstable)).*</includeRegex>
 	<recurse>false</recurse>
 </hudson.model.ListView>

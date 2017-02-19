@@ -22,6 +22,8 @@ SETUP_JENKINS () {
 
 	# Réduit le nombre de tests simultanés à 1 sur jenkins
 	sudo sed -i "s/<numExecutors>.*</<numExecutors>1</" /var/lib/jenkins/config.xml
+	# Vue "Stable" par défaut au lieu de "All"
+	sudo sed -i "s/<primaryView>.*</<primaryView>Stable</" /var/lib/jenkins/config.xml
 
 	# Mise en place de la connexion ssh pour jenkins cli.
 	# Création de la clé ssh
@@ -72,6 +74,9 @@ EOF
 	echo -e "\e[1m> Création des vues dans jenkins\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 	sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$DOMAIN/jenkins/ -i "$script_dir/jenkins/jenkins_key" create-view Official < "$script_dir/jenkins/Views_official.xml"
 	sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$DOMAIN/jenkins/ -i "$script_dir/jenkins/jenkins_key" create-view Community < "$script_dir/jenkins/Views_community.xml"
+	sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$DOMAIN/jenkins/ -i "$script_dir/jenkins/jenkins_key" create-view Stable < "$script_dir/jenkins/Views_stable.xml"
+	sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$DOMAIN/jenkins/ -i "$script_dir/jenkins/jenkins_key" create-view Testing < "$script_dir/jenkins/Views_testing.xml"
+	sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$DOMAIN/jenkins/ -i "$script_dir/jenkins/jenkins_key" create-view Unstable < "$script_dir/jenkins/Views_unstable.xml"
 
 	# Passe l'application à la racine du domaine
 	sudo yunohost app makedefault -d "$DOMAIN" jenkins
@@ -137,6 +142,10 @@ SETUP_CI_APP
 echo -e "\e[1mMise en place de Package check à l'aide des scripts d'intégration continue\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 "$script_dir/../build_CI.sh" #| tee -a "$LOG_BUILD_AUTO_CI" 2>&1
 
+echo -e "\e[1mClone le conteneur LXC pour la version testing\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+LXC_NAME=$(cat "$script_dir/../package_check/sub_scripts/lxc_build.sh" | grep LXC_NAME= | cut -d '=' -f2)
+sudo lxc-clone -o $LXC_NAME -n pcheck_testing | tee -a "$LOG_BUILD_AUTO_CI"
+
 touch "$script_dir/community_app"
 touch "$script_dir/official_app"
 
@@ -188,3 +197,166 @@ then
 else
 	echo -e "\e[91m$CI n'a pas les droits suffisants pour accéder aux scripts !\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 fi
+
+## ---
+# Création des autres instances
+
+PLAGE_IP=$(cat "$script_dir/../package_check/sub_scripts/lxc_build.sh" | grep PLAGE_IP= | cut -d '"' -f2)
+LXC_BRIDGE=$(cat "$script_dir/../package_check/sub_scripts/lxc_build.sh" | grep LXC_BRIDGE= | cut -d '=' -f2)
+
+for change_version in testing unstable
+do
+	change_LXC_NAME=pcheck_$change_version
+	change_LXC_BRIDGE=pcheck-$change_version
+	if [ $change_version == testing ]
+	then
+		change_PLAGE_IP="10.1.5"
+		echo -e "\e[1mClone le conteneur testing pour la version unstable\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+		sudo lxc-clone -o pcheck_testing -n pcheck_unstable >> "$LOG_BUILD_AUTO_CI" 2>&1
+	else
+		change_PLAGE_IP="10.1.6"
+	fi
+
+	echo -e "\e[1m> Modification de l'ip de la version $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo sed -i "s@$PLAGE_IP@$change_PLAGE_IP@" /var/lib/lxc/$change_LXC_NAME/rootfs/etc/network/interfaces >> "$LOG_BUILD_AUTO_CI" 2>&1
+	echo -e "\e[1m> Le nom du veth\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo sed -i "s@^lxc.network.veth.pair = ${LXC_NAME}@lxc.network.veth.pair = $change_LXC_NAME@" /var/lib/lxc/$change_LXC_NAME/config >> "$LOG_BUILD_AUTO_CI" 2>&1
+	echo -e "\e[1m> Et le nom du bridge\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo sed -i "s@^lxc.network.link = ${LXC_BRIDGE}@lxc.network.link = $change_LXC_BRIDGE@" /var/lib/lxc/$change_LXC_NAME/config >> "$LOG_BUILD_AUTO_CI" 2>&1
+	echo -e "\e[1m> Et enfin renseigne /etc/hosts sur $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo sed -i "s@^127.0.0.1 ${LXC_NAME}@127.0.0.1 $change_LXC_NAME@" /var/lib/lxc/$change_LXC_NAME/rootfs/etc/hosts >> "$LOG_BUILD_AUTO_CI" 2>&1
+
+	echo -e "\e[1m> Configure les dépôts du conteneur sur $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	if [ $change_version == testing ]; then
+		source=testing
+	else
+		source="testing unstable"
+	fi
+	sudo echo "deb http://repo.yunohost.org/debian/ jessie stable $source" | sudo tee  /var/lib/lxc/$change_LXC_NAME/rootfs/etc/apt/sources.list.d/yunohost.list >> "$LOG_BUILD_AUTO_CI" 2>&1
+
+	echo -e "\e[1m> Créer une copie des scripts CI_package_check pour $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	parent_dir="$(echo "$(dirname "$(dirname "$script_dir")")")"
+	new_CI_dir="$parent_dir/CI_package_check_$change_version"
+	sudo cp -a "$parent_dir/CI_package_check" "$new_CI_dir"
+	sudo rm "$new_CI_dir/auto_build/community_app" "$new_CI_dir/auto_build/official_app"
+	echo -e "\e[1m> Modifie les infos du conteneur dans le script build\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo sed -i "s@^PLAGE_IP=.*@PLAGE_IP=\"$change_PLAGE_IP\"@" "$new_CI_dir/package_check/sub_scripts/lxc_build.sh" >> "$LOG_BUILD_AUTO_CI" 2>&1
+	sudo sed -i "s@^LXC_NAME=.*@LXC_NAME=$change_LXC_NAME@" "$new_CI_dir/package_check/sub_scripts/lxc_build.sh" >> "$LOG_BUILD_AUTO_CI" 2>&1
+	sudo sed -i "s@^LXC_BRIDGE=.*@LXC_BRIDGE=$change_LXC_BRIDGE@" "$new_CI_dir/package_check/sub_scripts/lxc_build.sh" >> "$LOG_BUILD_AUTO_CI" 2>&1
+
+	echo -e "\e[1m> Supprime les locks sur $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo rm -f "$new_CI_dir/package_check/pcheck.lock"
+	sudo rm -f "$new_CI_dir/CI.lock"
+
+	echo -e "\e[1m> Ajoute un brige réseau pour la machine virtualisée\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	echo | sudo tee /etc/network/interfaces.d/$change_LXC_BRIDGE <<EOF >> "$LOG_BUILD_AUTO_CI" 2>&1
+auto $change_LXC_BRIDGE
+iface $change_LXC_BRIDGE inet static
+        address $change_PLAGE_IP.1/24
+        bridge_ports none
+        bridge_fd 0
+        bridge_maxwait 0
+EOF
+
+	echo -e "\e[1m> Ajoute la config ssh pour $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	echo | sudo tee -a /root/.ssh/config <<EOF >> "$LOG_BUILD_AUTO_CI" 2>&1
+# ssh $change_LXC_NAME
+Host $change_LXC_NAME
+Hostname $change_PLAGE_IP.2
+User pchecker
+IdentityFile /root/.ssh/$LXC_NAME
+EOF
+
+	echo -e "\e[1m> Création d'un snapshot pour le conteneur $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo lxc-snapshot -n $change_LXC_NAME >> "$LOG_BUILD_AUTO_CI" 2>&1
+
+	echo -e "\e[1m> Ajout des tâches cron pour $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	echo | sudo tee -a "/etc/cron.d/CI_package_check" <<EOF | tee -a "$LOG_BUILD_AUTO_CI"
+
+## $change_version
+# Vérifie toutes les 5 minutes si un test doit être lancé avec Package_check
+*/5 * * * * root "$new_CI_dir/pcheckCI.sh" >> "$new_CI_dir/pcheckCI.log" 2>&1
+# Vérifie les mises à jour du conteneur, à 4h chaque nuit.
+0 4 * * * root "$new_CI_dir/package_check/sub_scripts/auto_upgrade.sh" >> "$new_CI_dir/package_check/upgrade.log" 2>&1
+# Vérifie chaque nuit les listes d'applications de Yunohost pour mettre à jour les jobs. À 4h10, après la maj du conteneur.
+10 4 * * * root "$new_CI_dir/auto_build/list_app_ynh.sh" >> "$new_CI_dir/auto_build/update_lists.log" 2>&1
+EOF
+	echo -e "\e[1m> Adapte le script list_app_ynh.sh pour $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	# Désactive l'envoi de mail sur list_app_ynh.sh
+	sed -i 's/mail -s/echo "No mail"\n#&/' "$new_CI_dir/auto_build/list_app_ynh.sh" | tee -a "$LOG_BUILD_AUTO_CI"
+	# Patch le script list_app_ynh.sh pour ajouter le type d'instance dans le nom.
+	sed -i "s/.*echo \"\$app;\$appname\" >> \"\$templist\"/\t\tappname=\"\$appname ($change_version)\"\n&/" "$new_CI_dir/auto_build/list_app_ynh.sh" | tee -a "$LOG_BUILD_AUTO_CI"
+
+	echo -e "\e[1m> Modifie le trigger pour $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo cp -a "$new_CI_dir/auto_build/jenkins/jenkins_job_nostable.xml" "$new_CI_dir/auto_build/jenkins/jenkins_job.xml"
+
+	echo -e "\e[1m> Créer un lien symbolique pour les logs de $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	# Les logs seront accessible depuis le dossier principal de logs.
+	sudo ln -fs "$new_CI_dir/logs" "$parent_dir/CI_package_check/logs/logs_$change_version" | tee -a "$LOG_BUILD_AUTO_CI"
+
+	# Créer un lien symbolique pour la liste des niveaux de stable. (Même si fichier n'existe pas encore)
+	sudo ln -fs "$parent_dir/CI_package_check/auto_build/list_level_stable" "$new_CI_dir/auto_build/list_level_stable" | tee -a "$LOG_BUILD_AUTO_CI"
+
+	echo -e "\e[1m> Démarrage du bridge pour $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo ifup $change_LXC_BRIDGE --interfaces=/etc/network/interfaces.d/$change_LXC_BRIDGE | tee -a "$LOG_BUILD_AUTO_CI"
+
+	echo -e "\e[1m> Démarrage de la machine $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo lxc-start -n $change_LXC_NAME -d --logfile "$new_CI_dir/package_check/lxc_boot.log" >> "$LOG_BUILD_AUTO_CI" 2>&1
+	sleep 3
+	sudo lxc-ls -f >> "$LOG_BUILD_AUTO_CI" 2>&1
+
+	echo -e "\e[1m> Enregistre l'empreinte ECDSA pour la clé SSH\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo ssh-keyscan -H $change_PLAGE_IP.2 | sudo tee -a /root/.ssh/known_hosts >> "$LOG_BUILD_AUTO_CI" 2>&1
+	ssh -t $change_LXC_NAME "exit 0"	# Initie une premier connexion SSH pour valider la clé.
+	if [ "$?" -ne 0 ]; then	# Si l'utilisateur tarde trop, la connexion sera refusée...
+		ssh -t $change_LXC_NAME "exit 0"
+	fi
+	# Pour une raison qui m'échappe encore, le ssh-keyscan ne semble pas passer. Il faudra donc se connecter manuellement pour valider les 2 nouveaux hosts.
+
+# TESTING
+# sudo ifup pcheck-testing --interfaces=/etc/network/interfaces.d/pcheck-testing
+# sudo iptables -A FORWARD -i pcheck-testing -o eth0 -j ACCEPT
+# sudo iptables -A FORWARD -i eth0 -o pcheck-testing -j ACCEPT
+# sudo iptables -t nat -A POSTROUTING -s 10.1.5.0/24 -j MASQUERADE
+
+# sudo lxc-start -n pcheck_testing -d
+# sudo lxc-ls -f
+
+# sudo ssh -t pcheck_testing "sudo ping -q -c 2 security.debian.org"
+
+# sudo lxc-stop -n pcheck_testing
+# sudo rsync -aEAX --delete -i /var/lib/lxcsnaps/pcheck_testing/snap0/rootfs/ /var/lib/lxc/pcheck_testing/rootfs/
+
+# sudo iptables -D FORWARD -i pcheck-testing -o eth0 -j ACCEPT
+# sudo iptables -D FORWARD -i eth0 -o pcheck-testing -j ACCEPT
+# sudo iptables -t nat -D POSTROUTING -s 10.1.5.0/24 -j MASQUERADE
+# sudo ifdown --force pcheck-testing
+
+# UNSTABLE
+# sudo ifup pcheck-unstable --interfaces=/etc/network/interfaces.d/pcheck-unstable
+# sudo iptables -A FORWARD -i pcheck-unstable -o eth0 -j ACCEPT
+# sudo iptables -A FORWARD -i eth0 -o pcheck-unstable -j ACCEPT
+# sudo iptables -t nat -A POSTROUTING -s 10.1.6.0/24 -j MASQUERADE
+
+# sudo lxc-start -n pcheck_unstable -d
+# sudo lxc-ls -f
+
+# sudo ssh -t pcheck_unstable "sudo ping -q -c 2 security.debian.org"
+
+# sudo lxc-stop -n pcheck_unstable
+# sudo rsync -aEAX --delete -i /var/lib/lxcsnaps/pcheck_unstable/snap0/rootfs/ /var/lib/lxc/pcheck_unstable/rootfs/
+
+# sudo iptables -D FORWARD -i pcheck-unstable -o eth0 -j ACCEPT
+# sudo iptables -D FORWARD -i eth0 -o pcheck-unstable -j ACCEPT
+# sudo iptables -t nat -D POSTROUTING -s 10.1.6.0/24 -j MASQUERADE
+# sudo ifdown --force pcheck-unstable
+
+	echo -e "\e[1m> Arrêt de la machine $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo lxc-stop -n $change_LXC_NAME >> "$LOG_BUILD_AUTO_CI" 2>&1
+
+	echo -e "\e[1m> Arrêt du bridge pour $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo ifdown --force $change_LXC_BRIDGE | tee -a "$LOG_BUILD_AUTO_CI"
+
+done
+
+echo -e "\e[1m> Les conteneurs testing et unstable seront mis à jour cette nuit.\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"

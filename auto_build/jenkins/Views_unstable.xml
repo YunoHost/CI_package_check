@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <hudson.model.ListView>
-	<name>Official</name>
+	<name>Unstable</name>
 	<filterExecutors>false</filterExecutors>
 	<filterQueue>false</filterQueue>
 	<properties class="hudson.model.View$PropertyList"/>
@@ -17,6 +17,6 @@
 		<hudson.views.LastDurationColumn/>
 		<hudson.views.BuildButtonColumn/>
 	</columns>
-	<includeRegex>.*(Official)(?!.*(testing)|.*(unstable)).*</includeRegex>
+	<includeRegex>.*(unstable).*</includeRegex>
 	<recurse>false</recurse>
 </hudson.model.ListView>

@@ -4,16 +4,21 @@
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
 dest=$(cat "$script_dir/auto.conf" | grep MAIL_DEST= | cut -d '=' -f2)
-app=$1	# Le script prend en argument le nom du test
+app=$1	# Le script prend en 1er argument le nom du test
+app_log=$2	# Et en 2e, le log de l'app
 
 ADD_LEVEL_IN_LIST () {
 	list_name=$1
+	list_file="$script_dir/$list_name"
 	if [ -n "$app_level" ]
 	then	# Si le log contient un niveau pour l'app
-		if grep -q "$app" "$script_dir/$list_name"; then
-			sed -i "s/$app:.*/$app:$app_level/" "$script_dir/$list_name"	# Remplace le niveau de l'app dans la liste
+		if [ ! -e "$list_file" ]; then
+			touch "$list_file"	# Créer la liste si le fichier n'existe pas.
+		fi
+		if grep -q "$app" "$list_file"; then
+			sed -i "s/$app:.*/$app:$app_level/" "$list_file"	# Remplace le niveau de l'app dans la liste
 		else	# Ou si l'app n'est pas déjà dans le fichier
-			echo "$app:$app_level" >> "$script_dir/$list_name"	# Inscrit le level de l'app dans la liste
+			echo "$app:$app_level" >> "$list_file"	# Inscrit le level de l'app dans la liste
 		fi
 	fi
 }
@@ -36,7 +41,7 @@ then	# Si le fichier list_level_stable n'existe pas, c'est la première exécuti
 	done <<< "$(ls -1 "$script_dir/../logs")"
 else
 	# Récupère le niveau de l'application
-	app_level=$(tac "$script_dir/../logs/$line" | grep "Niveau de l'application: " -m1)	# Tac affiche le fichier depuis la fin, et grep limite la recherche au premier terme trouvé pour ne prendre que le dernier résultat.
+	app_level=$(tac "$script_dir/../logs/$app_log" | grep "Niveau de l'application: " -m1)	# Tac affiche le fichier depuis la fin, et grep limite la recherche au premier terme trouvé pour ne prendre que le dernier résultat.
 	if [ -n "$app_level" ]
 	then	# Si le log contient un niveau pour l'app
 		app_level="$(echo $(expr match "$app_level" '.*\(.[0-9]*\)'))"	# Extrait uniquement la valeur numérique du résultat avec match.
@@ -57,11 +62,12 @@ else
 			while read line	# Compare chaque niveau avec le niveau en stable
 			do
 				app=$(echo ${line%:*})	# Supprime après les : pour garder le nom de l'app
+				app=$(echo ${app% \($type\)})	# Et supprime le type, testing ou unstable
 				app_level=$(echo ${line##*:})	# Et avant les : pour garder le niveau seulement
 				stable_level=$(grep "$app" "$script_dir/list_level_stable" | cut -d: -f2)	# Récupère le niveau de l'app dans la liste stable
-				if [ $app_level != $stable_level ]	# Si le niveau est différent
+				if [ "$app_level" -ne "$stable_level" ]	# Si le niveau est différent
 				then
-					echo "> Changement de niveau de l'app $app de $stable_level en stable vers $app_level en $type" >> "$script_dir/mail_diff_level"
+					echo "- Changement de niveau de l'app $app de $stable_level en stable vers $app_level en $type." >> "$script_dir/mail_diff_level"
 				fi
 			done < "$script_dir/list_level"
 		fi
@@ -71,6 +77,5 @@ else
 fi
 
 if [ -s "$script_dir/mail_diff_level" ]; then	# Si le mail n'est pas vide
-
 	mail -s "Différences de niveaux entre stable et $type" "$dest" < "$script_dir/mail_diff_level"	# Envoi le différentiel de niveau par mail
 fi

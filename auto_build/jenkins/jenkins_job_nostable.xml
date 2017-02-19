@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+	<actions/>
+	<description></description>
+	<keepDependencies>false</keepDependencies>
+	<properties/>
+	<scm class="hudson.plugins.git.GitSCM" plugin="git@3.0.5">
+		<configVersion>2</configVersion>
+		<userRemoteConfigs>
+			<hudson.plugins.git.UserRemoteConfig>
+				<url>__DEPOTGIT__</url>
+			</hudson.plugins.git.UserRemoteConfig>
+		</userRemoteConfigs>
+		<branches>
+			<hudson.plugins.git.BranchSpec>
+				<name>*/master</name>
+			</hudson.plugins.git.BranchSpec>
+		</branches>
+		<doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+		<submoduleCfg class="list"/>
+		<extensions/>
+	</scm>
+	<canRoam>true</canRoam>
+	<disabled>false</disabled>
+	<blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+	<blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+	<triggers>
+		<org.jenkinsci.plugins.fstrigger.triggers.FileNameTrigger plugin="fstrigger@0.39">
+			<spec></spec>
+			<fileInfo>
+				<org.jenkinsci.plugins.fstrigger.triggers.FileNameTriggerInfo>
+					<filePathPattern>__PATH__/package_check/sub_scripts/ynh_version</filePathPattern>
+					<strategy>LATEST</strategy>
+					<inspectingContentFile>true</inspectingContentFile>
+					<doNotCheckLastModificationDate>true</doNotCheckLastModificationDate>
+					<contentFileTypes>
+						<org.jenkinsci.plugins.fstrigger.triggers.filecontent.SimpleFileContent/>
+					</contentFileTypes>
+				</org.jenkinsci.plugins.fstrigger.triggers.FileNameTriggerInfo>
+			</fileInfo>
+		</org.jenkinsci.plugins.fstrigger.triggers.FileNameTrigger>
+	</triggers>
+	<concurrentBuild>false</concurrentBuild>
+	<builders>
+		<hudson.tasks.Shell>
+			<command>__PATH__/analyseCI.sh __DEPOTGIT__ &quot;$JOB_NAME&quot;</command>
+		</hudson.tasks.Shell>
+	</builders>
+	<publishers/>
+	<buildWrappers>
+		<hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.3">
+			<colorMapName>xterm</colorMapName>
+		</hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+	</buildWrappers>
+</project>
