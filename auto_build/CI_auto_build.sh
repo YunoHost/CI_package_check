@@ -144,7 +144,7 @@ echo -e "\e[1mMise en place de Package check à l'aide des scripts d'intégratio
 
 echo -e "\e[1mClone le conteneur LXC pour la version testing\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 LXC_NAME=$(cat "$script_dir/../package_check/sub_scripts/lxc_build.sh" | grep LXC_NAME= | cut -d '=' -f2)
-sudo lxc-clone -o $LXC_NAME -n pcheck_testing | tee -a "$LOG_BUILD_AUTO_CI"
+sudo lxc-copy --name=$LXC_NAME --newname=pcheck_testing | tee -a "$LOG_BUILD_AUTO_CI"
 
 touch "$script_dir/community_app"
 touch "$script_dir/official_app"
@@ -212,7 +212,7 @@ do
 	then
 		change_PLAGE_IP="10.1.5"
 		echo -e "\e[1mClone le conteneur testing pour la version unstable\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
-		sudo lxc-clone -o pcheck_testing -n pcheck_unstable >> "$LOG_BUILD_AUTO_CI" 2>&1
+		sudo lxc-copy --name=pcheck_testing --newname=pcheck_unstable >> "$LOG_BUILD_AUTO_CI" 2>&1
 	else
 		change_PLAGE_IP="10.1.6"
 	fi
