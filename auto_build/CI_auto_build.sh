@@ -271,18 +271,24 @@ EOF
 	sudo lxc-snapshot -n $change_LXC_NAME >> "$LOG_BUILD_AUTO_CI" 2>&1
 
 	echo -e "\e[1m> Ajout des tâches cron pour $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	if [ "$change_version" == testing ]; then
+		cron_hour=4	# Décale les horaires de maj de testing et unstable
+	else
+		cron_hour=5	# Pour que testing démarre ses tests avant unstable
+	fi
 	echo | sudo tee -a "/etc/cron.d/CI_package_check" <<EOF | tee -a "$LOG_BUILD_AUTO_CI"
 
 ## $change_version
 # Vérifie toutes les 5 minutes si un test doit être lancé avec Package_check
 */5 * * * * root "$new_CI_dir/pcheckCI.sh" >> "$new_CI_dir/pcheckCI.log" 2>&1
-# Vérifie les mises à jour du conteneur, à 4h chaque nuit.
-0 4 * * * root "$new_CI_dir/package_check/sub_scripts/auto_upgrade.sh" >> "$new_CI_dir/package_check/upgrade.log" 2>&1
+# Vérifie les mises à jour du conteneur, à 4h30 chaque nuit.
+30 $cron_hour * * * root "$new_CI_dir/package_check/sub_scripts/auto_upgrade.sh" >> "$new_CI_dir/package_check/upgrade.log" 2>&1
 # Vérifie chaque nuit les listes d'applications de Yunohost pour mettre à jour les jobs. À 4h10, après la maj du conteneur.
-10 4 * * * root "$new_CI_dir/auto_build/list_app_ynh.sh" >> "$new_CI_dir/auto_build/update_lists.log" 2>&1
+50 $cron_hour * * * root "$new_CI_dir/auto_build/list_app_ynh.sh" >> "$new_CI_dir/auto_build/update_lists.log" 2>&1
 EOF
 	echo -e "\e[1m> Adapte le script list_app_ynh.sh pour $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 	# Désactive l'envoi de mail sur list_app_ynh.sh
+# Les modifs à suivre sur list_app_ynh sont génantes pour les futures mises à jour... Il faudrait trouver une autre solution...
 	sed -i 's/mail -s/echo "No mail"\n#&/' "$new_CI_dir/auto_build/list_app_ynh.sh" | tee -a "$LOG_BUILD_AUTO_CI"
 	# Patch le script list_app_ynh.sh pour ajouter le type d'instance dans le nom.
 	sed -i "s/.*echo \"\$app;\$appname\" >> \"\$templist\"/\t\tappname=\"\$appname ($change_version)\"\n&/" "$new_CI_dir/auto_build/list_app_ynh.sh" | tee -a "$LOG_BUILD_AUTO_CI"

@@ -5,10 +5,10 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 
 dest=$(cat "$script_dir/auto.conf" | grep MAIL_DEST= | cut -d '=' -f2)
 
-sudo rm -r "$script_dir/apps"	# Supprime le précédent clone de YunoHost/apps
-git clone -q git@github.com:YunoHost/apps.git "$script_dir/apps"	# Récupère la dernière version de https://github.com/YunoHost/apps
+sudo rm -r "$script_dir/../../apps"	# Supprime le précédent clone de YunoHost/apps
+git clone -q git@github.com:YunoHost/apps.git "$script_dir/../../apps"	# Récupère la dernière version de https://github.com/YunoHost/apps
 
-cd "$script_dir/apps"	# Se place dans le dossier du dépot git pour le script python
+cd "$script_dir/../../apps"	# Se place dans le dossier du dépot git pour le script python
 
 git checkout -b modify_level	# Créer une nouvelle branche pour commiter les changements
 
