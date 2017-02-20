@@ -3,7 +3,7 @@
 # Récupère le dossier du script
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
-dest=$(cat "$script_dir/auto.conf" | grep MAIL_DEST= | cut -d '=' -f2)
+dest=$(cat "$script_dir/auto.conf" | grep MAIL_DEST_COMPARE= | cut -d '=' -f2)
 app=$1	# Le script prend en 1er argument le nom du test
 app_log=$2	# Et en 2e, le log de l'app
 

@@ -5,6 +5,13 @@
 # Récupère le dossier du script
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
+type=""
+if echo "$script_dir" | grep -q CI_package_check_testing; then
+	type=" (testing)"	# Détermine le type d'exécution, testing ou unstable
+elif echo "$script_dir" | grep -q CI_package_check_unstable; then
+	type=" (unstable)"
+fi
+
 # JENKINS
 jenkins_job_path="/var/lib/jenkins/jobs"
 # jenkins_url=$(sudo yunohost app map -a jenkins | cut -d':' -f1)
@@ -70,15 +77,15 @@ PARSE_LIST () {
 		appname="$(basename --suffix=_ynh $app) \
 ($(echo ${1:0:1} | tr [:lower:] [:upper:])${1:1})"	# Isole le nom de l'application dans l'adresse github. Et la suffixe de (Community ou Official).
 # Le `tr` sert seulement à passer le premier caractère en majuscule
-		echo "$app;$appname" >> "$templist"	# Écrit la liste des apps avec un format plus lisible pour le script
+		echo "$app;${appname}${type}" >> "$templist"	# Écrit la liste des apps avec un format plus lisible pour le script
 		if [ "${x64:0:1}" == "1" ]; then
-			echo "$app;$appname (~x86-64b~)" >> "$templist"	# Ajoute une ligne pour le test sur architecture 64 bits
+			echo "$app;${appname}${type} (~x86-64b~)" >> "$templist"	# Ajoute une ligne pour le test sur architecture 64 bits
 		fi
 		if [ "${x32:0:1}" == "1" ]; then
-			echo "$app;$appname (~x86-32b~)" >> "$templist"	# Ajoute une ligne pour le test sur architecture 32 bits
+			echo "$app;${appname}${type} (~x86-32b~)" >> "$templist"	# Ajoute une ligne pour le test sur architecture 32 bits
 		fi
 		if [ "${arm:0:1}" == "1" ]; then
-			echo "$app;$appname (~ARM~)" >> "$templist"	# Ajoute une ligne pour le test sur architecture 64 bits
+			echo "$app;${appname}${type} (~ARM~)" >> "$templist"	# Ajoute une ligne pour le test sur architecture 64 bits
 		fi
 	done <<< "$(eval $grep_cmd)"
 }

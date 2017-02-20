@@ -166,6 +166,7 @@ EOF
 echo | sudo tee "$script_dir/auto.conf" <<EOF | tee -a "$LOG_BUILD_AUTO_CI"
 # Mail de destination des notifications de changement d'apps dans la liste.
 MAIL_DEST=root
+MAIL_DEST_COMPARE=root
 
 
 # Instance disponibles sur d'autres architectures. Un job supplémentaire sera créé pour chaque architecture indiquée.
@@ -286,12 +287,6 @@ EOF
 # Vérifie chaque nuit les listes d'applications de Yunohost pour mettre à jour les jobs. À 4h10, après la maj du conteneur.
 50 $cron_hour * * * root "$new_CI_dir/auto_build/list_app_ynh.sh" >> "$new_CI_dir/auto_build/update_lists.log" 2>&1
 EOF
-	echo -e "\e[1m> Adapte le script list_app_ynh.sh pour $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
-	# Désactive l'envoi de mail sur list_app_ynh.sh
-# Les modifs à suivre sur list_app_ynh sont génantes pour les futures mises à jour... Il faudrait trouver une autre solution...
-	sed -i 's/mail -s/echo "No mail"\n#&/' "$new_CI_dir/auto_build/list_app_ynh.sh" | tee -a "$LOG_BUILD_AUTO_CI"
-	# Patch le script list_app_ynh.sh pour ajouter le type d'instance dans le nom.
-	sed -i "s/.*echo \"\$app;\$appname\" >> \"\$templist\"/\t\tappname=\"\$appname ($change_version)\"\n&/" "$new_CI_dir/auto_build/list_app_ynh.sh" | tee -a "$LOG_BUILD_AUTO_CI"
 
 	echo -e "\e[1m> Modifie le trigger pour $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 	sudo cp -a "$new_CI_dir/auto_build/jenkins/jenkins_job_nostable.xml" "$new_CI_dir/auto_build/jenkins/jenkins_job.xml"
