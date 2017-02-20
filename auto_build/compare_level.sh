@@ -78,4 +78,5 @@ fi
 
 if [ -s "$script_dir/mail_diff_level" ]; then	# Si le mail n'est pas vide
 	mail -s "Différences de niveaux entre stable et $type" "$dest" < "$script_dir/mail_diff_level"	# Envoi le différentiel de niveau par mail
+	rm "$script_dir/list_level"
 fi

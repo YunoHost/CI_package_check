@@ -127,5 +127,5 @@ then	# Si la liste de test n'est pas vide
 	rm "$script_dir/CI.lock" # Libère le lock du CI
 	date
 	echo -e "Lock libéré pour $APP (id: $id)\n"
-	"$script_dir/auto_build/compare_level.sh" "$job" "$APP_LOG" > /dev/null 2>&1	# Note le niveau de l'app, ou le compare.
+	echo "\"$script_dir/auto_build/compare_level.sh\" \"$job\" \"$APP_LOG\" > /dev/null 2>&1" | at now + 5 min	# Diffère la notation du niveau de l'app, ou sa comparaison. (Le différer permet de démarrer un autre test le cas échéant.)
 fi
