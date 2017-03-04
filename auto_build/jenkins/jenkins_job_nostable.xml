@@ -26,7 +26,8 @@
 	<blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
 	<triggers>
 		<org.jenkinsci.plugins.fstrigger.triggers.FileNameTrigger plugin="fstrigger@0.39">
-			<spec></spec>
+			<spec># Toutes les 30 minutes.
+*/30 * * * *</spec>
 			<fileInfo>
 				<org.jenkinsci.plugins.fstrigger.triggers.FileNameTriggerInfo>
 					<filePathPattern>__PATH__/package_check/sub_scripts/ynh_version</filePathPattern>
