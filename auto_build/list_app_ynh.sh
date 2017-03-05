@@ -17,7 +17,6 @@ jenkins_job_path="/var/lib/jenkins/jobs"
 # jenkins_url=$(sudo yunohost app map -a jenkins | cut -d':' -f1)
 
 jenkins_url=$(cat "$script_dir/auto.conf" | grep DOMAIN= | cut -d '=' -f2)/$(cat "$script_dir/auto.conf" | grep CI_PATH= | cut -d '=' -f2)
-dest=$(cat "$script_dir/auto.conf" | grep MAIL_DEST= | cut -d '=' -f2)
 
 templist="$script_dir/templist"
 
@@ -97,7 +96,8 @@ ADD_JOB () {
 		if ! grep -q "$app" "$applist"
 		then	# Si l'app n'est pas dans la liste, c'est une nouvelle app.
 			appname=$(echo "$app" | cut -d';' -f2)	# Prend le nom de l'app, après l'adresse du dépôt
-			echo "Ajout de l'application $appname pour le dépôt $app" | tee -a "$script_dir/job_mail"
+			depot=$(echo "$app" | cut -d';' -f1)	# Isole le dépôt de l'application
+			echo "Ajout de l'application $appname pour le dépôt $depot" | tee -a "$script_dir/job_mail"
 			echo "$app" >> "$applist"	# L'application est ajoutée à la liste, suivi du nom de l'app
 			BUILD_JOB	# Renseigne le fichier du job et le charge dans le logiciel de CI
 		fi
@@ -133,5 +133,11 @@ ADD_JOB community	# Ajoute des job pour les nouvelles apps dans la liste
 
 if [ -s "$script_dir/job_mail" ]
 then
-    mail -s "Modification de la liste des applications" "$dest" < "$script_dir/job_mail"	# Envoi le rapport par mail.
+	if [ $(wc -l "$script_dir/job_mail" | cut -d' ' -f1) -gt 1 ]
+	then	# En cas de message sur plusieurs lignes, je sais pas comment faire...
+		paste=$(cat "$script_dir/job_mail" | yunopaste)
+		echo "Modification de la liste des applications du CI: $paste" > "$script_dir/job_mail"
+	fi
+	"$script_dir/xmpp_bot/xmpp_post.sh" "$(cat "$script_dir/job_mail")"	# Notifie sur le salon apps
+#     mail -s "Modification de la liste des applications" "$dest" < "$script_dir/job_mail"	# Envoi le rapport par mail.
 fi

@@ -164,9 +164,8 @@ EOF
 
 # Créer le fichier de configuration
 echo | sudo tee "$script_dir/auto.conf" <<EOF | tee -a "$LOG_BUILD_AUTO_CI"
-# Mail de destination des notifications de changement d'apps dans la liste.
+# Mail pour le rapport hebdommadaire
 MAIL_DEST=root
-MAIL_DEST_COMPARE=root
 
 
 # Instance disponibles sur d'autres architectures. Un job supplémentaire sera créé pour chaque architecture indiquée.
@@ -186,6 +185,15 @@ DOMAIN=$DOMAIN
 }
 EOF
 echo -e "\e[1mLe fichier de configuration a été créée dans $script_dir/auto.conf\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+
+echo -e "\e[1mMise en place du bot XMPP\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+sudo apt-get install python-xmpp | tee -a "$LOG_BUILD_AUTO_CI"
+git clone https://github.com/YunoHost/weblate2xmpp "$script_dir/xmpp_bot" | tee -a "$LOG_BUILD_AUTO_CI"
+sudo touch "$script_dir/xmpp_bot/password" | tee -a "$LOG_BUILD_AUTO_CI"
+sudo chmod 600 "$script_dir/xmpp_bot/password" | tee -a "$LOG_BUILD_AUTO_CI"
+echo "python \"$script_dir/xmpp_bot/to_room.py\" \$(sudo cat \"$script_dir/xmpp_bot/password\") \"\$1\" apps" \
+> "$script_dir/xmpp_bot/xmpp_post.sh" | tee -a "$LOG_BUILD_AUTO_CI"
+sudo chmod +x "$script_dir/xmpp_bot/xmpp_post.sh" | tee -a "$LOG_BUILD_AUTO_CI"
 
 # Liste les apps Yunohost et créer les jobs à l'aide du script list_app_ynh.sh
 echo -e "\e[1mCréation des jobs\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
@@ -361,3 +369,6 @@ EOF
 done
 
 echo -e "\e[1m> Les conteneurs testing et unstable seront mis à jour cette nuit.\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+
+echo ""
+echo -e "\e[92mLe fichier $script_dir/xmpp_bot/password doit être renseigné avec le mot de passe du bot xmpp.\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"

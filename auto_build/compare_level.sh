@@ -3,7 +3,6 @@
 # Récupère le dossier du script
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
-dest=$(cat "$script_dir/auto.conf" | grep MAIL_DEST_COMPARE= | cut -d '=' -f2)
 app=$1	# Le script prend en 1er argument le nom du test
 app_log=$2	# Et en 2e, le log de l'app
 
@@ -77,6 +76,12 @@ else
 fi
 
 if [ -s "$script_dir/mail_diff_level" ]; then	# Si le mail n'est pas vide
-	mail -s "Différences de niveaux entre stable et $type" "$dest" < "$script_dir/mail_diff_level"	# Envoi le différentiel de niveau par mail
+# 	mail -s "Différences de niveaux entre stable et $type" "$dest" < "$script_dir/mail_diff_level"	# Envoi le différentiel de niveau par mail
+	if [ $(wc -l "$script_dir/mail_diff_level" | cut -d' ' -f1) -gt 1 ]
+	then	# En cas de message sur plusieurs lignes, je sais pas comment faire...
+		paste=$(cat "$script_dir/mail_diff_level" | yunopaste)
+		echo "Différences de niveaux entre stable et $type: $paste" > "$script_dir/mail_diff_level"
+	fi
+	"$script_dir/xmpp_bot/xmpp_post.sh" "$(cat "$script_dir/mail_diff_level")"	# Notifie sur le salon apps
 	rm "$script_dir/list_level"
 fi
