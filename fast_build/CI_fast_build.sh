@@ -93,6 +93,11 @@ location /$CI_PATH/logs {
 }
 EOF
 
+# Met en place le cron pour arrêter la machine en cas d'inactivité
+echo -e "\e[1mAjout de la tâche cron pour l'arrêt auto\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+cat "$script_dir/CI_package_check_cron" | sudo tee -a "/etc/cron.d/CI_package_check" > /dev/null	# Ajoute le cron à la suite du cron de CI déjà en place.
+sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check"	# Renseigne l'emplacement du script dans le cron
+
 echo -e "\e[1mVérification des droits d'accès\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 if sudo su -l $CI -c "ls \"$script_dir\"" > /dev/null 2<&1
 then
@@ -100,3 +105,7 @@ then
 else
 	echo -e "\e[91m$CI n'a pas les droits suffisants pour accéder aux scripts !\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 fi
+
+echo ""
+echo -e "\e[92mLe script scaleway_api doit être modifié pour renseigner le token et le server_id.\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+echo -e "\e[92mCela permettra au serveur de s'arrêter de lui-même en cas d'inactivité.\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
