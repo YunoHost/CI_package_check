@@ -4,7 +4,7 @@
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
 SCALEWAY_SHUTDOWN () {
-	scaleway_api.sh stop
+	"$script_dir/scaleway_api.sh" stop
 }
 
 SHUTDOWN () {
@@ -13,7 +13,7 @@ SHUTDOWN () {
 
 idleCI=1
 
-while [ $idleCI -ne 0 ] || [ $idleCI -ne 3 ]
+while [ $idleCI -ne 0 ] && [ $idleCI -ne 3 ]
 do	# La boucle vérifie 3 fois que le serveur est inactif
 	sleep 180	# Patiente 3 min avant chaque vérification.
 	if [ -s ../work_list ]; then

@@ -57,7 +57,7 @@ SERVER_START () {
 
 SERVER_STOP () {
 	server_state=$(SERVER_STATUS)
-	if [ "$server_state" = "running" ]; then
+	if [ "$server_state" = "stopped" ]; then
 		echo -e "\e[1m>> Le serveur est déjà arrêté\e[0m"
 	else
 		echo -e "\e[1m> Arrêt du serveur\e[0m"
