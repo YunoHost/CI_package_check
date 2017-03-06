@@ -10,7 +10,7 @@ distant_dir=/home
 
 ENVOI_CI () {
 	echo ">>> Copie de $1"
-	rsync -avzhuE --progress --delete --exclude="^.git.*" "$1" -e 'ssh -p $ssh_port' $ssh_user@$ssh_host:"$distant_dir/"
+	rsync -avzhuE --progress --delete --exclude="^.git.*" "$1" -e "ssh -p $ssh_port" $ssh_user@$ssh_host:"$distant_dir/"
 }
 
 ## Options rsync:
@@ -25,7 +25,7 @@ ENVOI_CI () {
 # -e ssh login@serveur_ip_ou_nom: 	pour utiliser ssh
 # -E preserve executability
 
-scaleway_api.sh start	# Démarre le serveur scaleway distant avant de se connecter
+"$script_dir/scaleway_api.sh" start	# Démarre le serveur scaleway distant avant de se connecter
 
 ENVOI_CI DOSSIER_DE_MON_APP_1
 ENVOI_CI DOSSIER_DE_MON_APP_2

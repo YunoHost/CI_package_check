@@ -191,7 +191,7 @@ sudo apt-get install python-xmpp | tee -a "$LOG_BUILD_AUTO_CI"
 git clone https://github.com/YunoHost/weblate2xmpp "$script_dir/xmpp_bot" | tee -a "$LOG_BUILD_AUTO_CI"
 sudo touch "$script_dir/xmpp_bot/password" | tee -a "$LOG_BUILD_AUTO_CI"
 sudo chmod 600 "$script_dir/xmpp_bot/password" | tee -a "$LOG_BUILD_AUTO_CI"
-echo "python \"$script_dir/xmpp_bot/to_room.py\" \$(sudo cat \"$script_dir/xmpp_bot/password\") \"\$1\" apps" \
+echo "python \"$script_dir/xmpp_bot/to_room.py\" \$(sudo cat \"$script_dir/xmpp_bot/password\") \"\$@\" apps" \
 > "$script_dir/xmpp_bot/xmpp_post.sh" | tee -a "$LOG_BUILD_AUTO_CI"
 sudo chmod +x "$script_dir/xmpp_bot/xmpp_post.sh" | tee -a "$LOG_BUILD_AUTO_CI"
 
@@ -256,6 +256,10 @@ do
 	echo -e "\e[1m> Supprime les locks sur $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 	sudo rm -f "$new_CI_dir/package_check/pcheck.lock"
 	sudo rm -f "$new_CI_dir/CI.lock"
+
+	echo -e "\e[1mCréer un lien symbolique pour le bot XMPP sur $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo rm -r "$new_CI_dir/auto_build/xmpp_bot" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo ln -s "$script_dir/xmpp_bot" "$new_CI_dir/auto_build/xmpp_bot" | tee -a "$LOG_BUILD_AUTO_CI"
 
 	echo -e "\e[1m> Ajoute un brige réseau pour la machine virtualisée\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 	echo | sudo tee /etc/network/interfaces.d/$change_LXC_BRIDGE <<EOF >> "$LOG_BUILD_AUTO_CI" 2>&1
