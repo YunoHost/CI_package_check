@@ -43,6 +43,7 @@ SERVER_START () {
 	if [ "$server_state" = "running" ]; then
 		echo -e "\e[1m>> Le serveur est déjà démarré\e[0m"
 	else
+		SERVER_CHECK_STATUS
 		echo -e "\e[1m> Démarrage du serveur\e[0m"
 		curl -sS \
 		-H "X-Auth-Token: $token" \
@@ -60,6 +61,7 @@ SERVER_STOP () {
 	if [ "$server_state" = "stopped" ]; then
 		echo -e "\e[1m>> Le serveur est déjà arrêté\e[0m"
 	else
+		SERVER_CHECK_STATUS
 		echo -e "\e[1m> Arrêt du serveur\e[0m"
 		curl -sS \
 		-H "X-Auth-Token: $token" \

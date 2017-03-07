@@ -7,10 +7,11 @@ ssh_user=SSH_USER
 ssh_host=SSH_HOST
 ssh_port=22
 distant_dir=/home
+SSHSOCKET=~/.ssh/ssh-socket-%r-%h-%p
 
 ENVOI_CI () {
 	echo ">>> Copie de $1"
-	rsync -avzhuE --progress --delete --exclude="^.git.*" "$1" -e "ssh -p $ssh_port" $ssh_user@$ssh_host:"$distant_dir/"
+	rsync -avzhuE --progress --delete --exclude="^.git.*" "$1" -e "ssh -p $ssh_port -o ControlPath=$SSHSOCKET" $ssh_user@$ssh_host:"$distant_dir/"
 }
 
 ## Options rsync:
