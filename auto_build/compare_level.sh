@@ -82,6 +82,6 @@ if [ -s "$script_dir/mail_diff_level" ]; then	# Si le mail n'est pas vide
 		paste=$(cat "$script_dir/mail_diff_level" | yunopaste)
 		echo "Différences de niveaux entre stable et $type: $paste" > "$script_dir/mail_diff_level"
 	fi
-	"$script_dir/xmpp_bot/xmpp_post.sh" "$(cat "$script_dir/mail_diff_level")"	# Notifie sur le salon apps
+	"$script_dir/xmpp_bot_diff/xmpp_post.sh" "$(cat "$script_dir/mail_diff_level")"	# Notifie sur le salon apps
 	rm "$script_dir/list_level"
 fi

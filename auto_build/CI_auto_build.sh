@@ -259,7 +259,7 @@ do
 
 	echo -e "\e[1mCréer un lien symbolique pour le bot XMPP sur $change_version\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 	sudo rm -r "$new_CI_dir/auto_build/xmpp_bot" | tee -a "$LOG_BUILD_AUTO_CI"
-	sudo ln -s "$script_dir/xmpp_bot" "$new_CI_dir/auto_build/xmpp_bot" | tee -a "$LOG_BUILD_AUTO_CI"
+	sudo ln -s "$script_dir/xmpp_bot" "$new_CI_dir/auto_build/xmpp_bot_diff" | tee -a "$LOG_BUILD_AUTO_CI"
 
 	echo -e "\e[1m> Ajoute un brige réseau pour la machine virtualisée\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 	echo | sudo tee /etc/network/interfaces.d/$change_LXC_BRIDGE <<EOF >> "$LOG_BUILD_AUTO_CI" 2>&1
