@@ -48,7 +48,7 @@ while ! test -e "$script_dir/logs/$APP_LOG"; do	# Attend que le log soit recré�
 done
 echo ""
 date
-echo -ne "Fin du test."
+echo "Fin du test."
 
 echo -n "" > "$script_dir/CI.lock"	# Vide le fichier lock pour indiquer qu'il peux être supprimé. (Ce script n'a pas suffisamment de droit pour supprimer lui-même le fichier.)
 

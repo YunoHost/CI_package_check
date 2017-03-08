@@ -100,19 +100,20 @@ then	# Si la liste de test n'est pas vide
 	EXEC_PCHECK > "$script_dir/package_check/Test_results_cli.log" 2>&1	# Lance l'exécution de package_check en fonction de l'architecture processeur indiquée.
 
 	sed -i 1d "$script_dir/work_list"	# Supprime la première ligne de la liste
-	cp "$script_dir/package_check/Test_results_cli.log" "$script_dir/logs/$APP_LOG"	# Copie le log des résultats
+	echo -n "Le log complet pour cette application a été dupliqué et est accessible à l'adresse " >> "$script_dir/package_check/Test_results_cli.log"
 	if test -e "$script_dir/auto_build/auto.conf"	# Si le fichier de conf de auto_build existe, c'est une instance avec accès en ligne aux logs
 	then
 		DOMAIN=$(cat "$script_dir/auto_build/auto.conf" | grep DOMAIN= | cut -d '=' -f2)
 		CI_PATH=$(cat "$script_dir/auto_build/auto.conf" | grep CI_PATH= | cut -d '=' -f2)
-		sed -i "s@$script_dir/package_check/Complete.log@https://$DOMAIN/$CI_PATH/logs/$complete_log@g" "$script_dir/logs/$APP_LOG"	# Change l'emplacement du complete.log à la fin des résultats du test.
+		echo "https://$DOMAIN/$CI_PATH/logs/$complete_log" >> "$script_dir/package_check/Test_results_cli.log"
 	else
-		sed -i "s@$script_dir/package_check/Complete.log@$script_dir/logs/$complete_log@g" "$script_dir/logs/$APP_LOG"	# Change l'emplacement du complete.log à la fin des résultats du test.
+		echo "$script_dir/logs/$complete_log" >> "$script_dir/package_check/Test_results_cli.log"
 	fi
-	sed -i "1i-> Test $job\n" "$script_dir/logs/$APP_LOG"	# Ajoute le nom du job au début du log
 	if [ "$inittime" -eq "0" ]; then
-		echo "!!! L'exécution de Package_check a été trop longue, le script a été avorté. !!! (PCHECK_AVORTED)" >> "$script_dir/logs/$APP_LOG"
+		echo "!!! L'exécution de Package_check a été trop longue, le script a été avorté. !!! (PCHECK_AVORTED)" >> "$script_dir/package_check/Test_results_cli.log"
 	fi
+	cp "$script_dir/package_check/Test_results_cli.log" "$script_dir/logs/$APP_LOG"	# Copie le log des résultats
+	sed -i "1i-> Test $job\n" "$script_dir/logs/$APP_LOG"	# Ajoute le nom du job au début du log
 	date
 	echo "Fin du test sur $APP (id: $id)"
 	inittime=$(date +%s)	# Enregistre l'heure de démarrage de la boucle
