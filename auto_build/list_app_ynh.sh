@@ -14,8 +14,6 @@ fi
 
 # JENKINS
 jenkins_job_path="/var/lib/jenkins/jobs"
-# jenkins_url=$(sudo yunohost app map -a jenkins | cut -d':' -f1)
-
 jenkins_url=$(cat "$script_dir/auto.conf" | grep DOMAIN= | cut -d '=' -f2)/$(cat "$script_dir/auto.conf" | grep CI_PATH= | cut -d '=' -f2)
 
 templist="$script_dir/templist"
@@ -37,6 +35,22 @@ JENKINS_BUILD_JOB () {
 JENKINS_REMOVE_JOB () {
 	sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$jenkins_url/ -i "$script_dir/jenkins/jenkins_key" delete-job "$appname"	# Supprime le job dans jenkins
 }
+
+JENKINS_LIST_JOBS () {
+	if [ "$type" = " (testing)" ]; then
+		view=Testing
+	elif [ "$type" = " (unstable)" ]; then
+		view=Unstable
+	else
+		view=Stable
+	fi
+	sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$jenkins_url/ -i "$script_dir/jenkins/jenkins_key" list-jobs $view | grep "($1)" > "$script_dir/current_jobs" 	# Liste les jobs et filtre Official ou Community
+}
+
+GET_GIT_URL_JENKINS () {
+	url=$(grep "<url>" "/var/lib/jenkins/jobs/$app/config.xml" | cut -d'>' -f 2 | cut -d'<' -f 1)
+	echo "$url"
+}
 # / JENKINS
 
 
@@ -55,6 +69,21 @@ REMOVE_JOB () {
 	complete_log=$(basename -s .log "$APP_LOG")_complete.log	# Le complete log est le même que celui des résultats, auquel on ajoute _complete avant le .log
 	sudo rm "$script_dir/../logs/$APP_LOG"
 	sudo rm "$script_dir/../logs/$complete_log"
+}
+
+GET_GIT_URL () {
+	while read app
+	do
+		depot=$(GET_GIT_URL_JENKINS)
+		echo "$depot;$app" >> "$script_dir/list_jobs"
+	done < "$script_dir/current_jobs"	# Liste la liste des applications officielles
+}
+
+BUILD_LIST () {
+	filtre="$(echo ${1:0:1} | tr [:lower:] [:upper:])${1:1}"	# Passe en majuscule la première lettre de Community ou Official
+	JENKINS_LIST_JOBS $filtre
+	> "$script_dir/list_jobs"
+	GET_GIT_URL
 }
 
 PARSE_LIST () {
@@ -90,15 +119,13 @@ PARSE_LIST () {
 }
 
 ADD_JOB () {
-	applist="$script_dir/$1_app"
 	while read app
 	do
-		if ! grep -q "$app" "$applist"
+		if ! grep -q "$app" "$script_dir/list_jobs"
 		then	# Si l'app n'est pas dans la liste, c'est une nouvelle app.
 			appname=$(echo "$app" | cut -d';' -f2)	# Prend le nom de l'app, après l'adresse du dépôt
 			depot=$(echo "$app" | cut -d';' -f1)	# Isole le dépôt de l'application
 			echo "Ajout de l'application $appname pour le dépôt $depot" | tee -a "$script_dir/job_mail"
-			echo "$app" >> "$applist"	# L'application est ajoutée à la liste, suivi du nom de l'app
 			BUILD_JOB	# Renseigne le fichier du job et le charge dans le logiciel de CI
 		fi
 	done < "$templist"	# Liste la liste des applications officielles
@@ -110,23 +137,24 @@ CLEAR_JOB () {
 	do
 		if ! grep -q "$app" "$templist"
 		then	# Si l'app n'est pas dans la liste temporaire, elle doit être supprimée des jobs.
-			appname=$(grep "$app" "$applist" | cut -d';' -f2)	# Prend le nom de l'app, après l'adresse du dépôt
+			appname=$(grep "$app" "$script_dir/list_jobs" | cut -d';' -f2)	# Prend le nom de l'app, après l'adresse du dépôt
 			echo "Suppression de l'application $appname" | tee -a "$script_dir/job_mail"
-			sed -i "/$appname/d" "$applist"	# Supprime l'application de la liste des jobs
 			sudo tar -cpzf "$job_path/$appname $(date +%d-%m-%Y).tar.gz" -C "$job_path" "$appname"	# Créer une archive datée du job avant de le supprimer.
 			REMOVE_JOB
 		fi
-	done < "$applist"	# Liste les apps dans la liste des jobs actuels
+	done < "$script_dir/list_jobs"	# Liste les apps dans la liste des jobs actuels
 }
 
 > "$script_dir/job_mail"    # Purge le contenu du mail
 
 # Liste les applications officielles
+BUILD_LIST official	# Construit la liste des apps actuellement sur le CI
 PARSE_LIST official	# Extrait les adresses des apps et forme la liste des apps
 CLEAR_JOB official	# Supprime les jobs pour les apps supprimées de la liste
 ADD_JOB official	# Ajoute des job pour les nouvelles apps dans la liste
 
 # Liste les applications communautaires
+BUILD_LIST community	# Construit la liste des apps actuellement sur le CI
 PARSE_LIST community	# Extrait les adresses des apps et forme la liste des apps
 CLEAR_JOB community	# Supprime les jobs pour les apps supprimées de la liste
 ADD_JOB community	# Ajoute des job pour les nouvelles apps dans la liste

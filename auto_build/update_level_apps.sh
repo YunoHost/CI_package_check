@@ -47,4 +47,4 @@ git commit -q -m "Update app's level" | tee -a "$script_dir/mail_content"
 # Et la clé doit être enregistrée dans le compte github de ynh-CI-bot
 git push -q -u origin modify_level | tee -a "$script_dir/mail_content"
 
-mail -s "Modification du niveau des applications" "$dest" < "$script_dir/mail_content"	# Envoi le log de git par mail.
+mail -s "[YunoHost] Modification du niveau des applications" "$dest" < "$script_dir/mail_content"	# Envoi le log de git par mail.

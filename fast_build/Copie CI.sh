@@ -27,6 +27,16 @@ ENVOI_CI () {
 # -E preserve executability
 
 "$script_dir/scaleway_api.sh" start	# Démarre le serveur scaleway distant avant de se connecter
+sleep 3
+
+echo "Connection ssh initiale"
+ssh $ssh_user@$ssh_host -p $ssh_port -f -M -N -o ControlPath=$SSHSOCKET	# Créé une connection ssh maître.
+if [ "$?" -ne 0 ]; then	# Si l'utilisateur tarde trop, la connexion sera refusée...
+	ssh $ssh_user@$ssh_host -p $ssh_port -f -M -N -o ControlPath=$SSHSOCKET	# Créé une connection ssh maître.
+fi
 
 ENVOI_CI DOSSIER_DE_MON_APP_1
 ENVOI_CI DOSSIER_DE_MON_APP_2
+
+echo "Fermeture de la connection ssh maître."
+ssh $ssh_user@$ssh_host -p $ssh_port -S $SSHSOCKET -O exit

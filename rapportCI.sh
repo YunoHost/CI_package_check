@@ -141,4 +141,4 @@ else
 	mail="$mail_html"
 	type="text/html"
 fi
-mail -a "Content-type: $type" -s "Rapport hebdomadaire de CI" "$dest" < "$mail"	# Envoi le rapport par mail.
+mail -a "Content-type: $type" -s "[YunoHost] Rapport hebdomadaire de CI" "$dest" < "$mail"	# Envoi le rapport par mail.
