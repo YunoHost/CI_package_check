@@ -26,4 +26,7 @@ sudo "$script_dir/switch_container.sh" $type >> "$script_dir/../package_check/up
 # Démarre la mise à jour du conteneur.
 sudo "$script_dir/../package_check/sub_scripts/auto_upgrade.sh" >> "$script_dir/../package_check/upgrade.log" 2>&1
 
+# Copie les numéros de version
+sudo cp "$script_dir/../package_check/sub_scripts/ynh_version" "$script_dir/../package_check/sub_scripts/ynh_version_$type"
+
 rm "$script_dir/../CI.lock"
