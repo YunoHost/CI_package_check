@@ -53,7 +53,7 @@ else
 		else
 			type=unstable
 		fi
-		ADD_LEVEL_IN_LIST list_level
+		ADD_LEVEL_IN_LIST list_level_$type
 		if [ -s "$script_dir/../work_list" ]; then	# Si la file d'attente n'est pas vide
 			exit 0	# Le script a terminé son travail
 		else	# Si la file d'attente est vide, la série de test est terminée.
@@ -68,7 +68,7 @@ else
 				then
 					echo "- Changement de niveau de l'app $app de $stable_level en stable vers $app_level en $type." >> "$script_dir/mail_diff_level"
 				fi
-			done < "$script_dir/list_level"
+			done < "$script_dir/list_level_$type"
 		fi
 	else	# Si c'est un test sur stable, modifie les niveaux de référence
 		ADD_LEVEL_IN_LIST list_level_stable
@@ -83,5 +83,5 @@ if [ -s "$script_dir/mail_diff_level" ]; then	# Si le mail n'est pas vide
 		echo "Différences de niveaux entre stable et $type: $paste" > "$script_dir/mail_diff_level"
 	fi
 	"$script_dir/xmpp_bot_diff/xmpp_post.sh" "$(cat "$script_dir/mail_diff_level")"	# Notifie sur le salon apps
-	rm "$script_dir/list_level"
+	rm "$script_dir/list_level_$type"
 fi

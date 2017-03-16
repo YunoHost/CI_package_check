@@ -89,12 +89,28 @@ then	# Si la liste de test n'est pas vide
 	APP=$(echo $APP | cut -d ';' -f 1)	# Isole l'app
 	ARCH="$(echo $(expr match "$job" '.*\((~.*~)\)') | cut -d'(' -f2 | cut -d')' -f1)"	# Isole le nom de l'architecture après le nom du test.
 
+	if echo "$job" | grep -q "(testing)"	# Vérifie si c'est un test testing
+	then
+		echo "Test sur instance testing"
+		log_dir="logs_testing/"
+		"$script_dir/auto_build/switch_container.sh" testing
+	elif echo "$job" | grep -q "(unstable)"	# Vérifie si c'est un test unstable
+	then
+		echo "Test sur instance unstable"
+		log_dir="logs_unstable/"
+		"$script_dir/auto_build/switch_container.sh" unstable
+	else	# stable
+		echo "Test sur instance stable"
+		"$script_dir/auto_build/switch_container.sh" stable
+		log_dir=""
+	fi
+
 	echo $id > "$script_dir/CI.lock" # Met en place le lock pour le CI, afin d'éviter des démarrages pendant les wait. Le lock contient le nom du package à tester
 	chmod 666 "$script_dir/CI.lock"	# Donne le droit au script analyseCI de modifier le lock.
 	date
 	echo "Un test avec Package check va démarrer sur $APP (id: $id)"
-	APP_LOG=$(echo "${APP#http*://}" | sed 's@/@_@g')$ARCH.log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
-	complete_log=$(basename -s .log "$APP_LOG")_complete.log	# Le complete log est le même que celui des résultats, auquel on ajoute _complete avant le .log
+	APP_LOG=${log_dir}$(echo "${APP#http*://}" | sed 's@/@_@g')$ARCH.log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
+	complete_log=${log_dir}$(basename -s .log "$APP_LOG")_complete.log	# Le complete log est le même que celui des résultats, auquel on ajoute _complete avant le .log
 	rm -f "$script_dir/logs/$APP_LOG"	# Supprime le log du précédent test.
 	inittime=$(date +%s)	# Enregistre l'heure de démarrage du test
 	EXEC_PCHECK > "$script_dir/package_check/Test_results_cli.log" 2>&1	# Lance l'exécution de package_check en fonction de l'architecture processeur indiquée.

@@ -18,6 +18,15 @@ echo "$1;$id;$2" >> "$script_dir/work_list"	# Ajoute le dépôt à tester à la 
 ARCH="$(echo $(expr match "$2" '.*\((~.*~)\)') | cut -d'(' -f2 | cut -d')' -f1)"	# Isole le nom de l'architecture après le nom du test.
 APP_LOG=$(echo "${1#http*://}" | sed 's@/@_@g')$ARCH.log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
 
+# Relocalise les logs pour testing et unstable
+if echo "$2" | grep -q "(testing)"	# Vérifie si c'est un test testing
+then
+	APP_LOG=logs_testing/$APP_LOG
+elif echo "$2" | grep -q "(unstable)"	# Vérifie si c'est un test unstable
+then
+	APP_LOG=logs_unstable/$APP_LOG
+fi
+
 echo ""
 date
 echo "Attente du début du travail..."
@@ -58,7 +67,7 @@ then	# Cherche dans le résultat final les FAIL pour connaitre le résultat glob
 	exit 1	# Si des FAIL sont trouvé, sort en erreur.
 elif ! grep "SUCCESS$" "$script_dir/logs/$APP_LOG" | grep -v "Package linter" | grep -q "SUCCESS$"
 then    # Si il n'y a aucun SUCCESS à l'exception de Package linter. Aucun test n'a été effectué.
-        exit 1
+	exit 1
 else
 	exit 0	# Sinon tout les tests ont réussi.
 fi
