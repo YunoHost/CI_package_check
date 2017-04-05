@@ -154,7 +154,7 @@ sudo ln -s /var/lib/lxcsnaps/pcheck_stable /var/lib/lxcsnaps/$LXC_NAME
 
 # Modifie la tâche cron pour utiliser auto_upgrade_container
 echo -e "\e[1mModification de la tâche cron pour l'upgrade\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
-sudo sed -i "s@package_check/sub_scripts/auto_upgrade.sh.*@auto_build/auto_upgrade_container.sh stable\"@g" "/etc/cron.d/CI_package_check" | tee -a "$LOG_BUILD_AUTO_CI"
+sudo sed -i "s@package_check/sub_scripts/auto_upgrade.sh.*@auto_build/auto_upgrade_container.sh\" stable@g" "/etc/cron.d/CI_package_check" | tee -a "$LOG_BUILD_AUTO_CI"
 
  ### Solution en multiples conteneur abandonnée en raison d'une erreur récurente "curl: (7) Failed to connect to sous.domain.tld port 80: No route to host"
 # echo -e "\e[1mClone le conteneur LXC pour la version testing\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
@@ -316,7 +316,7 @@ do
 
 ## $change_version
 # Vérifie les mises à jour du conteneur, à 4h30 chaque nuit.
-30 $cron_hour * * * root "$script_dir/auto_upgrade_container.sh $change_version"
+30 $cron_hour * * * root "$script_dir/auto_upgrade_container.sh" $change_version
 EOF
  ### Solution en multiples conteneur abandonnée...
 # ## $change_version

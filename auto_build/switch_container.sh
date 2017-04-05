@@ -15,7 +15,7 @@ type=$1
 
 if [ -h /var/lib/lxcsnaps/$LXC_NAME ]
 then	# Si le dossier du snapshot est un lien symbolique
-	if ! sudo ls -l /var/lib/lxcsnaps/pchecker_lxc | grep -q $type
+	if ! sudo ls -l /var/lib/lxcsnaps/pchecker_lxc | grep -q "_$type"
 	then	# Si le lien ne pointe pas sur le bon snapshot
 		echo "> Changement de conteneur vers $type"
 		sudo rm /var/lib/lxcsnaps/$LXC_NAME

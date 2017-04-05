@@ -6,6 +6,9 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 app=$1	# Le script prend en 1er argument le nom du test
 app_log=$2	# Et en 2e, le log de l'app
 
+echo "app=$app"
+echo "app_log=$app_log"
+
 ADD_LEVEL_IN_LIST () {
 	list_name=$1
 	list_file="$script_dir/$list_name"
@@ -53,24 +56,30 @@ else
 		else
 			type=unstable
 		fi
+		echo "Test sur $type"
 		ADD_LEVEL_IN_LIST list_level_$type
 		if [ -s "$script_dir/../work_list" ]; then	# Si la file d'attente n'est pas vide
-			exit 0	# Le script a terminé son travail
-		else	# Si la file d'attente est vide, la série de test est terminée.
-			> "$script_dir/mail_diff_level"
-			while read line	# Compare chaque niveau avec le niveau en stable
-			do
-				app=$(echo ${line%:*})	# Supprime après les : pour garder le nom de l'app
-				app=$(echo ${app% \($type\)})	# Et supprime le type, testing ou unstable
-				app_level=$(echo ${line##*:})	# Et avant les : pour garder le niveau seulement
-				stable_level=$(grep "$app" "$script_dir/list_level_stable" | cut -d: -f2)	# Récupère le niveau de l'app dans la liste stable
-				if [ "$app_level" -ne "$stable_level" ]	# Si le niveau est différent
-				then
-					echo "- Changement de niveau de l'app $app de $stable_level en stable vers $app_level en $type." >> "$script_dir/mail_diff_level"
-				fi
-			done < "$script_dir/list_level_$type"
+			if grep -q "$type" "$script_dir/../work_list"
+			then
+				echo "Un autre test sur $type va démarrer"
+				exit 0  # Le script a terminé son travail
+			fi
 		fi
+		# Si la file d'attente est vide, la série de test est terminée.
+		> "$script_dir/mail_diff_level"
+		while read line	# Compare chaque niveau avec le niveau en stable
+		do
+			app=$(echo ${line%:*})	# Supprime après les : pour garder le nom de l'app
+			app=$(echo ${app% \($type\)})	# Et supprime le type, testing ou unstable
+			app_level=$(echo ${line##*:})	# Et avant les : pour garder le niveau seulement
+			stable_level=$(grep "$app" "$script_dir/list_level_stable" | cut -d: -f2)	# Récupère le niveau de l'app dans la liste stable
+			if [ "$app_level" -ne "$stable_level" ]	# Si le niveau est différent
+			then
+				echo "- Changement de niveau de l'app $app de $stable_level en stable vers $app_level en $type." >> "$script_dir/mail_diff_level"
+			fi
+		done < "$script_dir/list_level_$type"
 	else	# Si c'est un test sur stable, modifie les niveaux de référence
+		echo "Test sur stable"
 		ADD_LEVEL_IN_LIST list_level_stable
 	fi
 fi
@@ -82,6 +91,6 @@ if [ -s "$script_dir/mail_diff_level" ]; then	# Si le mail n'est pas vide
 		paste=$(cat "$script_dir/mail_diff_level" | yunopaste)
 		echo "Différences de niveaux entre stable et $type: $paste" > "$script_dir/mail_diff_level"
 	fi
-	"$script_dir/xmpp_bot_diff/xmpp_post.sh" "$(cat "$script_dir/mail_diff_level")"	# Notifie sur le salon apps
+	"$script_dir/xmpp_bot/xmpp_post.sh" "$(cat "$script_dir/mail_diff_level")"	# Notifie sur le salon apps
 	rm "$script_dir/list_level_$type"
 fi

@@ -16,7 +16,7 @@ idleCI=1
 date
 while [ $idleCI -ne 0 ] && [ $idleCI -ne 3 ]
 do	# La boucle vérifie 3 fois que le serveur est inactif
-	sleep 180	# Patiente 3 min avant chaque vérification.
+	sleep 540	# Patiente 9 min avant chaque vérification.
 	if [ -e "$script_dir/lock_shutdown.on" ]; then
 		echo "lock_shutdown.on"
 		idleCI=0	# Si le fichier lock_shutdown.on est présent, arrêt annulé.
