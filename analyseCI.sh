@@ -53,16 +53,13 @@ echo "$repo;$id;$test_name" >> "$script_dir/work_list"
 # Execution indicator
 #=================================================
 
-# Update a indicator file periodically to prove that the script doesn't stopping his execution
+analyseCI_indic="$script_dir/analyseCI_exec"
 exec_indicator () {
-	# Loop as long as the file exist
-	while test -e "$script_dir/analyseCI_last_exec"
-	do
-		# Update the file with the current time and the id.
-		echo "$(date +%s);$id" > "$script_dir/analyseCI_last_exec"
-		# Wait 2 minutes and redo
-		sleep 120
-	done
+	# Wait for the creation of analyseCI_exec file by pcheckCI.sh
+	while ! test -e "$analyseCI_indic"; do sleep 1; done
+	# Print the pid of this script in a file
+	echo -n "$$" > "$analyseCI_indic"
+	echo ";$id" >> "$analyseCI_indic"
 }
 # Start the indicator loop in background.
 exec_indicator &
@@ -73,7 +70,7 @@ exec_indicator &
 
 set_timeout () {
 	# Get the maximum timeout value + 10 minutes
-	timeout=$(( $(grep "timeout=" "$script_dir/config" | cut --delimiter="=" --fields=2) + 600 ))
+	timeout=$(( $(grep "^timeout=" "$script_dir/config" | cut --delimiter="=" --fields=2) + 600 ))
 
 	# Set the starting time
 	starttime=$(date +%s)
@@ -101,14 +98,16 @@ echo "Wait for work starting..."
 # Start the time counter
 set_timeout
 
+lock_pcheckCI="$script_dir/CI.lock"
+
 # Start a infinite loop
 while true
 do
 	# Check the lock file. Indicator of pcheckCI execution
-	if test -e "$script_dir/CI.lock"
+	if test -e "$lock_pcheckCI"
 	then
 		# Check if the lock file contains the id of the current test
-		if [ "$(cat "$script_dir/CI.lock")" = "$id" ]
+		if [ "$(cat "$lock_pcheckCI")" = "$id" ]
 		then
 			# If the lock file contains the current id, the test has begun. Break the waiting loop
 			break
@@ -137,7 +136,7 @@ log_cli="$script_dir/package_check/Test_results_cli.log"
 set_timeout
 
 # Loop as long as the lock file doesn't contain "Finish" indication
-while [ "$(cat "$script_dir/CI.lock")" != "Finish" ]
+while [ "$(cat "$lock_pcheckCI")" != "Finish" ]
 do
 	# Check the timeout
 	timeout_expired
@@ -168,7 +167,7 @@ echo "Test finished."
 #=================================================
 
 # Clean the log file for inform pcheckCI that this script is finished.
-echo -n "" > "$script_dir/CI.lock"
+> "$lock_pcheckCI"
 
 #=================================================
 # Check the final results
@@ -179,7 +178,7 @@ result=0
 
 # Search for some FAIL in the final results
 # But, ignore the line of package linter.
-if grep "FAIL$" "$log_cli" | grep -v "Package linter" | grep -q "FAIL$"
+if grep "FAIL$" "$log_cli" | grep --invert-match "Package linter" | grep --quiet "FAIL$"
 then
 	# If a fail was find, the test failed.
 	result=1
@@ -190,16 +189,10 @@ then
 	result=1
 
 # And, finally, check if at least one test was a success.
-elif ! grep "SUCCESS$" "$log_cli" | grep -v "Package linter" | grep -q "SUCCESS$"
+elif ! grep "SUCCESS$" "$log_cli" | grep --invert-match "Package linter" | grep --quiet "SUCCESS$"
 then
 	result=1
 fi
 
 # Exit with the result as exit code. To inform the CI software of the global result
 exit $result
-
-
-# On indiquera "Finish" dans le lock file pour dire qu'on a terminé.
-
-# analyseCI_last_exec a besoin d'un 666
-# Et doit donc être créé à part... Par pcheckCI
