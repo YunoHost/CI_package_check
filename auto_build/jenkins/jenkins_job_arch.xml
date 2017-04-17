@@ -8,7 +8,7 @@
 		<configVersion>2</configVersion>
 		<userRemoteConfigs>
 			<hudson.plugins.git.UserRemoteConfig>
-				<url>__DEPOTGIT__</url>
+				<url>__REPOGIT__</url>
 			</hudson.plugins.git.UserRemoteConfig>
 		</userRemoteConfigs>
 		<branches>
@@ -39,7 +39,7 @@
 	<concurrentBuild>false</concurrentBuild>
 	<builders>
 		<hudson.tasks.Shell>
-			<command>__PATH__/analyseCI.sh __DEPOTGIT__ &quot;$JOB_NAME&quot;</command>
+			<command>__PATH__/analyseCI.sh __REPOGIT__ &quot;$JOB_NAME&quot;</command>
 		</hudson.tasks.Shell>
 	</builders>
 	<publishers/>
