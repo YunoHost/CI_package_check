@@ -1,28 +1,66 @@
 #!/bin/bash
 
-# Récupère le dossier du script
+#=================================================
+# Grab the script directory
+#=================================================
+
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
-dest=$(grep "dest=" "$script_dir/config" | cut -d= -f2)	# Récupère le destinataire du mail
-type_mail=$(grep "type_mail=" "$script_dir/config" | cut -d= -f2)	# Récupère le format du mail
-ci_url=$(grep "CI_URL=" "$script_dir/config" | cut -d= -f2)	# Récupère l'adresse du logiciel de CI
+#=================================================
+# Get variables
+#=================================================
+
+# Get the mail recipient
+recipient=$(grep "dest=" "$script_dir/config" | cut --delimiter='=' --fields=2)
+# Get the type of mail to send, html or markdown
+type_mail=$(grep "type_mail=" "$script_dir/config" | cut --delimiter='=' --fields=2)
+# Get the url of the official CI
+ci_url=$(grep "CI_URL=" "$script_dir/config" | cut --delimiter='=' --fields=2)
 
 mail_md="$script_dir/CR_mail.md"
 mail_html="$script_dir/CR_mail.html"
 
-JENKINS_JOB_URL () {
-	job_url=https://${ci_url}/job/${job}/lastBuild/console
-}
+#=================================================
+# Find all apps by their logs
+#=================================================
 
-BUILD_JOB_URL () {
-	JENKINS_JOB_URL
-	job_url=$(echo $job_url | sed 's/ /%20/g')	# Remplace les espaces
-	job_url=$(echo $job_url | sed 's/(/%28/g' | sed 's/)/%29/g')	# Remplace les parenthèses
-}
+# List all log files in logs dir
+while read line
+do
+	# Ignore all complete logs
+	if ! grep --quiet "_complete.log$" <<< "$line"
+	then
 
+		# Find the name of the job for this log
+		job=$(grep "^-> Test " "$script_dir/logs/$line")
+		# Remove "-> Test " for keep only the name of the job
+		job=${job#-> Test }
+
+		# Prefix an official apps by 0, and a community by 1. To sort them after
+		if echo "$job" | grep --quiet " (Official)"; then
+			echo -n "0." >> "$script_dir/sortlist"
+		else
+			echo -n "1." >> "$script_dir/sortlist"
+		fi
+		# Add the job name and the log file. Just after the number (0 or 1)
+		echo "$job:$line"	>> "$script_dir/sortlist"
+	fi
+done <<< "$(ls -1 "$script_dir/logs")"
+
+# Sort the list of application, and place the officials apps in first
+sort "$script_dir/sortlist" --output="$script_dir/sortlist"
+# Then remove the 0 or 1 at the beginning of each line.
+sed --in-place 's/^[0-1].//g' "$script_dir/sortlist"
+
+#=================================================
+# Give an headline to the message
+#=================================================
+
+# Headline for markdown
 echo "## Compte rendu hebdomadaire des tests d'intégration continue." > "$mail_md"
 
-cat << EOF > "$mail_html"	# Écrit le début du mail en html
+# And for html
+cat << EOF > "$mail_html"
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
@@ -37,41 +75,58 @@ Compte rendu hebdomadaire des tests d'intégration continue.
 <br>
 EOF
 
-while read ligne
+#=================================================
+# Build the url of a job
+#=================================================
+
+JENKINS_JOB_URL () {
+	job_url=https://${ci_url}/job/${job}/lastBuild/console
+}
+
+BUILD_JOB_URL () {
+	# Build the url of a job
+
+	JENKINS_JOB_URL
+	job_url=$(echo $job_url | sed 's/ /%20/g')	# Remplace les espaces
+	job_url=$(echo $job_url | sed 's/(/%28/g' | sed 's/)/%29/g')	# Remplace les parenthèses
+}
+
+#=================================================
+# Read each app listed before
+#=================================================
+
+while read line
 do
-	if ! grep -q "_complete.log$" <<< "$ligne"	# Ignore les logs "complete", ne traite que les autres fichiers.
+	# Get the job
+	job=${line%%:*}
+	# Then get the name of the log
+	logfile="$script_dir/logs/${line#*:}"
+
+	# Check if at least one test have failed (Except Package linter)
+	global_result=$(grep "FAIL$" "$logfile" | grep --invert-match "Package linter" | grep --count "FAIL$")
+
+	# Find the results of tests, just before the level
+	results=$(grep "Level of this application:" "$logfile" --max-count=1 --before-context=20 | grep "FAIL$\|SUCCESS$")
+
+	# Check if package check have been aborted before it ends its job
+	if grep --quiet "PCHECK_AVORTED" "$logfile"
 	then
-		job=$(grep "^-> Test " < "$script_dir/logs/$ligne")	# Récupère le nom du test, ajouté au début du log
-		job=${job#-> Test }	# Supprime "-> Test " pour garder uniquement le nom du test
-		if echo "$job" | grep -q " (Official)"; then
-			echo -n "0." >> "$script_dir/sortliste"	# Préfixe les app officielle de 0
-		else
-			echo -n "1." >> "$script_dir/sortliste" # Et les autre de 1, pour forcer le tri des apps officielles au début de la liste.
-		fi
-		echo "$job:$ligne"	>> "$script_dir/sortliste"	# Inscrit dans le fichier temporaire le nom du job suivi du nom du log.
+		# Add this timeout error to the other errors
+		results="$(echo $results; grep "PCHECK_AVORTED" "$logfile" | cut --delimiter='(' --fields=1): FAIL"
+		global_result=1
 	fi
-done <<< "$(ls -1 "$script_dir/logs")"
-sort "$script_dir/sortliste" -o "$script_dir/sortliste"	# Tri la liste des apps
-sed -i 's/^[0-1].//g' "$script_dir/sortliste"	# Supprime le 0. ou 1. au début de chaque ligne.
 
-while read ligne
-do
-	job=${ligne%%:*}	# Supprime après : pour garder uniquement le job.
-	ligne=${ligne#*:}	# Supprime avant : pour garder uniquement le nom du log.
-	global_result=$(grep "FAIL$" "$script_dir/logs/$ligne" | grep -v "Package linter" | grep -c "FAIL$")	# Récupère la sortie du grep pour savoir si des FAIL sont sortis sur le test
-	if grep "PCHECK_AVORTED" "$script_dir/logs/$ligne" > /dev/null; then
-		global_result=-1	# Indique que package_check a été arrêté par un timeout.
-	fi
-	results=$(grep "Notes de résultats" "$script_dir/logs/$ligne" -m1 -B30 | grep "FAIL$\|SUCCESS$")	# Isole le premier résultat de test et récupère la liste des tests effectués
-	if [ "$global_result" -eq "-1" ]; then
-		results="$(echo $results; grep "PCHECK_AVORTED" "$script_dir/logs/$ligne" | cut -d'(' -f 1): FAIL"	# Ajoute l'erreur de timeout aux tests échoués.
-	fi
-	score=$(grep "Notes de r.*sultats: .*/20" "$script_dir/logs/$ligne" | grep -o "[[:digit:]]\+/20.*")	# Récupère le (ou les) notes de tests
-	level=$(tac "$script_dir/logs/$ligne" | grep "Niveau de l'application: " -m1  | cut -d: -f2 | cut -d' ' -f2)
+	# Find the last level indication and get only the level itself
+	level=$(tac "$logfile" | grep "Level of this application: " --max-count=1  | cut --delimiter=: --fields=2 | cut --delimiter=' ' --fields=2)
 
-	BUILD_JOB_URL	# Génère l'url du job sur le logiciel de CI
+	# Build the url of the job
+	BUILD_JOB_URL
+
+	# Print the name of the job, and its url into the mail
 	echo -en "\n### Test [$job]($job_url):" >> "$mail_md"
 	echo -n "<br><strong><a href="$job_url">Test $job: </a><font color=" >> "$mail_html"
+
+	# Print the global result into the mail
 	if [ "$global_result" -eq 0 ]; then
 		echo " **SUCCESS** :white_check_mark:" >> "$mail_md"
 		echo "green>SUCCESS" >> "$mail_html"
@@ -80,60 +135,70 @@ do
 		echo "red>FAIL" >> "$mail_html"
 	fi
 	echo -e "</font>\n</strong>\n<br>" >> "$mail_html"
-	results=$(echo "$results" | sed 's/\t//g')	# Efface les tabulations dans les résultats
-	results=$(echo "$results" | sed 's/: /&**/g' | sed 's/.*$/&**/g')	# Met en gras le résultat lui-même
-	if echo "$results" | grep -q "SUCCESS"; then
-		echo "" >> "$mail_md"	# Saut de ligne seulement si il y a des succès.
+
+	# Remove all tabs in the results
+	results=$(echo "$results" | sed 's/\t//g')
+	# And put the results themselves in bold
+	results=$(echo "$results" | sed 's/: /&**/g' | sed 's/.*$/&**/g')
+
+	# Print SUCCESS results
+	if echo "$results" | grep --quiet "SUCCESS"
+	then
+		echo "" >> "$mail_md"
 		echo "<ul>" >> "$mail_html"
-		echo "$results" | grep "SUCCESS" | sed 's/^.*/- &/g' >> "$mail_md"	# Ajoute un tiret au début de chaque ligne et affiche les résultats
+
+		# Print all SUCCESS results and prefix them by a -
+		echo "$results" | grep "SUCCESS" | sed 's/^.*/- &/g' >> "$mail_md"
+		# Or a 'li' tag
 		echo "$results" | grep "SUCCESS" | sed 's/^.*/<li> &/g' | sed 's/.*$/&<\/li>/g' \
-		| sed 's/: \*\*/: <strong>/g' | sed 's@\*\*@</strong>@g' >> "$mail_html"	# Ajoute li et /li au début et à la fin de chaque ligne
+		| sed 's/: \*\*/: <strong>/g' | sed 's@\*\*@</strong>@g' >> "$mail_html"
 		echo "</ul>" >> "$mail_html"
 	fi
-	if echo "$results" | grep -q "FAIL"; then
-		echo "-" >> "$mail_md"  # Ajoute un tiret en lieu de saut de ligne, pour ne pas casser la syntaxe des listes markdown.
-		echo "<ul>" >> "$mail_html"	# Saut de ligne seulement si il y a des échecs.
-		echo "$results" | grep "FAIL" | sed 's/^.*/- &/g' >> "$mail_md"	# Ajoute un tiret au début de chaque ligne et affiche les résultats
+
+	# Print FAIL results
+	if echo "$results" | grep --quiet "FAIL"
+	then
+		echo "-" >> "$mail_md"
+		echo "<ul>" >> "$mail_html"
+
+		# Print all FAIL results and prefix them by a -
+		echo "$results" | grep "FAIL" | sed 's/^.*/- &/g' >> "$mail_md"
+		# Or a 'li' tag
 		echo "$results" | grep "FAIL" | sed 's/^.*/<li> &/g' | sed 's/.*$/&<\/li>/g' \
-		| sed 's/: \*\*/: <strong>/g' | sed 's@\*\*@</strong>@g' >> "$mail_html"	# Ajoute li et /li au début et à la fin de chaque ligne
+		| sed 's/: \*\*/: <strong>/g' | sed 's@\*\*@</strong>@g' >> "$mail_html"
 		echo "</ul>" >> "$mail_html"
 	fi
+
+	# Print the global level
 	echo "" >> "$mail_md"
 	if [ -n "$level" ]
 	then
 		echo -n "Niveau de l'application: " >> "$mail_md"
 		echo -n "Niveau de l'application: " >> "$mail_html"
+
 		echo "**$level**" >> "$mail_md"
 		echo "<strong>$level</strong><br>" >> "$mail_html"
-	else
-		while read <&3 linescore
-		do
-			if test -n "$linescore"
-			then
-				linescore_note=$(echo $linescore | cut -d'/' -f1)
-				echo -n "<font color=" >> "$mail_html"
-				if [ "$linescore_note" -le 10 ]; then
-					echo -n "red" >> "$mail_html"
-				elif [ "$linescore_note" -le 15 ]; then
-					echo -n "orange" >> "$mail_html"
-				elif [ "$linescore_note" -gt 15 ]; then
-					echo -n "green" >> "$mail_html"
-				fi
-				echo "><strong>$linescore</strong></font><br>" >> "$mail_html"
-				echo "**$linescore**" >> "$mail_md"
-			fi
-		done 3<<< "$(echo "$score")"
 	fi
+
+	# Finish the paragraph for this app
 	echo "<br>" >> "$mail_html"
 	echo "" >> "$mail_md"
-done < "$script_dir/sortliste"	# Reprend à partir de la liste triée.
-rm "$script_dir/sortliste"
+done < "$script_dir/sortlist"
 
-sed -i 's/.\[\+[[:digit:]]\+m//g' "$mail_md" "$mail_html"	# Supprime les commandes de couleurs et de formatages de texte formé par \e[xxm
+# Remove the list before the next execution
+rm "$script_dir/sortlist"
 
+# Remove all color marks, identified by \e[xxm
+sed --in-place 's/.\[\+[[:digit:]]\+m//g' "$mail_md" "$mail_html"
+
+# Ending the html file
 echo -e "</body>\n</html>" >> "$mail_html"
 
-if [ "$type_mail" == "markdown" ]
+#=================================================
+# Send the report by mail
+#=================================================
+
+if [ "$type_mail" = "markdown" ]
 then
 	mail="$mail_md"
 	type="text/plain; markup=markdown"
@@ -141,4 +206,4 @@ else
 	mail="$mail_html"
 	type="text/html"
 fi
-mail -a "Content-type: $type" -s "[YunoHost] Rapport hebdomadaire de CI" "$dest" < "$mail"	# Envoi le rapport par mail.
+mail -a "Content-type: $type" -s "[YunoHost] Rapport hebdomadaire de CI" "$recipient" < "$mail"	

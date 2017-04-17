@@ -1,149 +1,404 @@
 #!/bin/bash
 
-# Récupère le dossier du script
+#=================================================
+# Grab the script directory
+#=================================================
+
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
-timeout=$(grep "timeout=" "$script_dir/config" | cut -d= -f2)	# Durée maximale d'exécution de Package_check avant de déclarer un timeout et de stopper le processus.
+#=================================================
+# Time out
+#=================================================
+
+set_timeout () {
+	# Get the maximum timeout value
+	timeout=$(grep "^timeout=" "$script_dir/config" | cut --delimiter="=" --fields=2)
+
+	# Set the starting time
+	starttime=$(date +%s)
+}
+
+# Check if the timeout has expired
+timeout_expired () {
+	# Compare the current time with the max timeout
+	if [ $(( $(date +%s) - $starttime )) -ge $timeout ]
+	then
+		echo -e "\e[91m\e[1m!!! Timeout reached ($(( $timeout / 60 )) min). !!!\e[0m"
+		return 1
+	fi
+}
+
+#=================================================
+# Check analyseCI execution
+#=================================================
+
+# Check if the analyseCI is still running
+check_analyseCI () {
+
+	sleep 30
+
+	# Get the pid of analyseCI
+	local analyseCI_pid=$(cat "$analyseCI_indic" | cut --delimiter=';' --fields=1)
+	local analyseCI_id=$(cat "$analyseCI_indic" | cut --delimiter=';' --fields=2)
+
+	# Infinite loop
+	while true
+	do
+
+		# Check if analyseCI still running by its pid
+		if ! ps --pid $analyseCI_pid | grep --quiet $analyseCI_pid
+		then
+			break
+		fi
+
+		# Check if analyseCI wait for the correct id.
+		if [ "$analyseCI_id" != "$id" ]
+		then
+			break
+		fi
+
+		# Wait 30 secondes and recheck
+		sleep 30
+	done
+
+	echo -e "\e[91m\e[1m!!! analyseCI was cancelled, stop this test !!!\e[0m"
+	# Stop all current tests
+	"$script_dir/force_stop.sh"
+}
+
+#=================================================
+# Start a test through SSH
+#=================================================
+
+PCHECK_SSH () {
+	echo "Start a test on $ssh_host for $architecture architecture"
+	echo "Initialize an ssh connection"
+
+	# Try to connect first
+	ssh $ssh_user@$ssh_host -p $ssh_port -i "$ssh_key" "exit"
+	if [ "$?" -ne 0 ]; then
+		echo "Failed to initiate an ssh connection"
+
+	else
+		# Make a call to analyseCI.sh through ssh
+		ssh $ssh_user@$ssh_host -p $ssh_port -i "$ssh_key" \
+			"\"$pcheckci_path/analyseCI.sh\" \"$repo\" \"$test_name\""
+
+		# Copy the complete log from the distant machine
+		scp -P $ssh_port -i "$ssh_key" \
+			$ssh_user@$ssh_host:"$pcheckci_path/package_check/Complete.log" \
+			"$script_dir/logs/$complete_app_log"
+	fi
+}
+
+#=================================================
+# Start a test with the local instance of package check
+#=================================================
 
 PCHECK_LOCAL () {
-	echo -n "Exécution du test en local"
-	if [ -n "$ARCH" ]; then
-		echo " pour l'architecture $ARCH."
-	else
-		echo "."
+	echo -n "Start a test"
+	if [ -n "$architecture" ]; then
+		echo " for $architecture architecture"
 	fi
-	"$script_dir/package_check/package_check.sh" --bash-mode "$APP" &	# Exécute package_check depuis le sous-dossier local
-	PID_PCHECK=$!	# Récupère le PID de la commande package_check
-	while ps -p $PID_PCHECK | grep -q $PID_PCHECK	# Boucle tant que le process tourne, pour vérifier le temps d'exécution
+
+	# Start package check and pass to background
+	"$script_dir/package_check/package_check.sh" --bash-mode "$repo" &
+
+
+	# Get the pid of package check
+	package_check_pid=$!
+
+	# Start the time counter
+	set_timeout
+
+	# Start a loop while package check is working
+	while ps --pid $package_check_pid | grep --quiet $package_check_pid
 	do
-		if [ $(( $(date +%s) - $inittime )) -ge $timeout ]	# Vérifie la durée d'exécution du test
-		then	# Si la durée dépasse le timeout fixé, force l'arrêt du test pour ne pas bloquer la machine
-			kill -s 15 $PID_PCHECK	# Demande l'arrêt du script.
-			"$script_dir/lxc_stop.sh" # Arrête le conteneur LXC.
-			inittime=0	# Indique l'arrêt forcé du script
+
+		# Check if the timeout is not expired
+		if ! timeout_expired
+		then
+			# If the timeout is expired, kill package check
+			kill -s SIGTERM $package_check_pid
+			echo -e "\e[91m\e[1m!!! Package check was too long, its execution was aborted. !!! (PCHECK_AVORTED)\e[0m" | tee --append "$cli_log"
+
+			# Stop all current tests
+			"$script_dir/force_stop.sh"
 		fi
 		sleep 30
 	done
-	cp "$script_dir/package_check/Complete.log" "$script_dir/logs/$complete_log"	# Copie le log complet
+
+	# Copy the complete log
+	cp "$script_dir/package_check/Complete.log" "$script_dir/logs/$complete_app_log"
 }
 
-PCHECK_SSH () {
-	echo "Exécution du test sur $ssh_host pour l'architecture $ARCH"
-	echo "Connection ssh initiale"
-	ssh $ssh_user@$ssh_host -p $ssh_port -i "$ssh_key" "exit"	# Initie une première connection pour tester ssh
-	if [ "$?" -ne 0 ]; then
-		echo "Échec de connexion ssh"
-	else
-		ssh $ssh_user@$ssh_host -p $ssh_port -i "$ssh_key" "\"$pcheckci_path/analyseCI.sh\" \"$APP\" \"$job\"" | tee "$script_dir/package_check/Complete.log"	# Exécute package_check via ssh sur la machine distante et redirige la sortie sur le log de package_check pour leurrer analyseCI afin d'avoir la progression des tests.
-		scp -P $ssh_port -i "$ssh_key" $ssh_user@$ssh_host:"$pcheckci_path/package_check/Complete.log" "$script_dir/logs/$complete_log"	# Copie le log complet
-	fi
-}
+#=================================================
+# Exec package check according to the architecture
+#=================================================
 
-EXEC_PCHECK () {	# Démarre les tests en fonction de l'architecture demandée.
-	if [ "$ARCH" = "~x86-64b~" ]
+EXEC_PCHECK () {
+	# Check the asked architecture
+	# And define a prefix to get the infos in the config file.
+	if [ "$architecture" = "~x86-64b~" ]
 	then
 		arch_pre=64
-	elif [ "$ARCH" = "~x86-32b~" ]
+	elif [ "$architecture" = "~x86-32b~" ]
 	then
 		arch_pre=32
-	elif [ "$ARCH" = "~ARM~" ]
+	elif [ "$architecture" = "~ARM~" ]
 	then
 		arch_pre=arm
-	else	# Par défaut, utilise l'instance locale. Si aucune architecture n'est mentionnée.
+
+	# Or use the local instance if nothing is specified.
+	else
 		arch_pre=none
 	fi
-	if [ "$arch_pre" != "none" ]; then	# Si l'architecture est précisée, cherche dans le fichier de config le type d'instance à utiliser.
-		instance=$(grep "> $arch_pre.Instance=" "$script_dir/config" | cut -d= -f2)	# Récupère l'instance, LOCAL ou SSH pour l'architecture
+
+	get_info_in_config () {
+		echo "$(grep "^$1" "$script_dir/config" | cut --delimiter='=' --fields=2)"
+	}
+
+	# If an architecture is specified
+	if [ "$arch_pre" != "none" ]
+	then
+		# Get the instance type for this architecture (SSH or LOCAL)
+		instance=$(get_info_in_config "> $arch_pre.Instance=")
 	fi
+
+	# If a SSH instance type is asked
 	if [ "$instance" = "SSH" ]
-	then # Si l'instance pour l'archi est configurée sur SSH
-		ssh_host=$(grep "> $arch_pre.ssh_host=" "$script_dir/config" | cut -d= -f2)	# Récupère le nom de domaine ou l'IP de la machine distante
-		ssh_user=$(grep "> $arch_pre.ssh_user=" "$script_dir/config" | cut -d= -f2)	# Récupère le nom de l'utilisateur autorisé à se connecté avec la clé ssh
-		ssh_key=$(grep "> $arch_pre.ssh_key=" "$script_dir/config" | cut -d= -f2)	# Récupère l'emplacement de la clé privée pour la connexion ssh
-		pcheckci_path=$(grep "> $arch_pre.pcheckci_path=" "$script_dir/config" | cut -d= -f2)	# Récupère l'emplacement de analyseCI.sh sur la machine distante depuis ssh.
-		ssh_port=$(grep "> $arch_pre.ssh_port=" "$script_dir/config" | cut -d= -f2)	# Récupère le port ssh
-		PCHECK_SSH	# Démarre le test via ssh
+	then
+		# Get all the informations for the connexion in the config file
+		ssh_host=$(get_info_in_config "> $arch_pre.ssh_host=")
+		ssh_user=$(get_info_in_config "> $arch_pre.ssh_user=")
+		ssh_key=$(get_info_in_config "> $arch_pre.ssh_key=")
+		pcheckci_path=$(get_info_in_config "> $arch_pre.pcheckci_path=")
+		ssh_port=$(get_info_in_config "> $arch_pre.ssh_port=")
+
+		# Start a test through SSH
+		PCHECK_SSH
+
+	# Or start a test on the local instance of Package check
 	else
-		PCHECK_LOCAL	# Démarre le test en local
+
+		PCHECK_LOCAL
 	fi
 }
 
-if test -s "$script_dir/work_list"
-then	# Si la liste de test n'est pas vide
-	if test -e "$script_dir/package_check/pcheck.lock" || test -e "$script_dir/CI.lock"
-	then	# Le travail est reporté à la prochaine exécution si le lock de package check est présent ou celui du CI.
+#=================================================
+# Main test process
+#=================================================
+
+# The work list contains the next test to performed
+work_list="$script_dir/work_list"
+
+# If the list is not empty
+if test -s "$work_list"
+then
+
+	#=================================================
+	# Check the two lock files before continuing
+	#=================================================
+
+	lock_pcheckCI="$script_dir/CI.lock"
+	lock_package_check="$script_dir/package_check/pcheck.lock"
+
+	# If at least one lock file exist, cancel this execution
+	if test -e "$lock_package_check" || test -e "$lock_pcheckCI"
+	then
+
+		# Simply print the date, for information
 		date
-		if test -e "$script_dir/package_check/pcheck.lock"; then
-			echo "Le fichier $script_dir/package_check/pcheck.lock est présent. Package check est déjà utilisé."
+
+		if test -e "$lock_package_check"; then
+			echo "The file $lock_package_check exist. Package check is already used."
 		fi
-		if test -e "$script_dir/CI.lock"; then
-			echo "Le fichier $script_dir/CI.lock est présent. Un test est déjà en cours."
+
+		if test -e "$lock_pcheckCI"; then
+			echo "The file $lock_pcheckCI exist. Another test is already in progress."
 		fi
-		echo "Exécution annulée..."
+
+		echo "Execution cancelled..."
 		exit 0
 	fi
 
-	APP=$(head -n1 "$script_dir/work_list")	# Prend la première ligne de work_list
-	id=$(echo $APP | cut -d ';' -f 2)	# Isole l'id
-	job=$(echo $APP | cut -d ';' -f 3)	# Isole le nom du test
-	APP=$(echo $APP | cut -d ';' -f 1)	# Isole l'app
-	ARCH="$(echo $(expr match "$job" '.*\((~.*~)\)') | cut -d'(' -f2 | cut -d')' -f1)"	# Isole le nom de l'architecture après le nom du test.
+	#=================================================
+	# Create the file analyseCI_last_exec
+	#=================================================
 
-	if echo "$job" | grep -q "(testing)"	# Vérifie si c'est un test testing
+	analyseCI_indic="$script_dir/analyseCI_exec"
+	if [ ! -e "$analyseCI_indic" ]
 	then
-		echo "Test sur instance testing"
+		# Create the file for exec_indicator from analyseCI.sh
+		touch "$analyseCI_indic"
+		# And give enought right to allow analyseCI.sh to modify this file.
+		chmod 666 "$analyseCI_indic"
+	fi
+
+	#=================================================
+	# Parse the first line of work_list
+	#=================================================
+
+	# Read the first line of work_list
+	repo=$(head --lines=1 "$work_list")
+	# Get the id
+	id=$(echo $repo | cut --delimiter=';' --fields=2)
+	# Get the name of the test
+	test_name=$(echo $repo | cut --delimiter=';' --fields=3)
+	# Keep only the repositery
+	repo=$(echo $repo | cut --delimiter=';' --fields=1)
+	# Find the architecture name from the test name
+	architecture="$(echo $(expr match "$test_name" '.*\((~.*~)\)') | cut --delimiter='(' --fields=2 | cut --delimiter=')' --fields=1)"
+
+	#=================================================
+	# Check the execution of analyseCI
+	#=================================================
+
+	check_analyseCI &
+
+	#=================================================
+	# Define the type of test
+	#=================================================
+
+	# Check if it's a test on testing
+	if echo "$test_name" | grep --quiet "(testing)"
+	then
+		echo "Test on testing instance"
+		# Add a subdir for the log file
 		log_dir="logs_testing/"
+		# Use a testing container
 		"$script_dir/auto_build/switch_container.sh" testing
-	elif echo "$job" | grep -q "(unstable)"	# Vérifie si c'est un test unstable
+
+	# Or a test on unstable
+	elif echo "$test_name" | grep --quiet "(unstable)"
 	then
-		echo "Test sur instance unstable"
+		echo "Test on unstable instance"
+		# Add a subdir for the log file
 		log_dir="logs_unstable/"
+		# Use a unstable container
 		"$script_dir/auto_build/switch_container.sh" unstable
-	else	# stable
-		echo "Test sur instance stable"
-		"$script_dir/auto_build/switch_container.sh" stable
-		log_dir=""
-	fi
 
-	echo $id > "$script_dir/CI.lock" # Met en place le lock pour le CI, afin d'éviter des démarrages pendant les wait. Le lock contient le nom du package à tester
-	chmod 666 "$script_dir/CI.lock"	# Donne le droit au script analyseCI de modifier le lock.
-	date
-	echo "Un test avec Package check va démarrer sur $APP (id: $id)"
-	APP_LOG=${log_dir}$(echo "${APP#http*://}" | sed 's@/@_@g')$ARCH.log # Supprime http:// ou https:// au début et remplace les / par des _. Ceci sera le fichier de log de l'app.
-	complete_log=${log_dir}$(basename -s .log "$APP_LOG")_complete.log	# Le complete log est le même que celui des résultats, auquel on ajoute _complete avant le .log
-	rm -f "$script_dir/logs/$APP_LOG"	# Supprime le log du précédent test.
-	inittime=$(date +%s)	# Enregistre l'heure de démarrage du test
-	EXEC_PCHECK > "$script_dir/package_check/Test_results_cli.log" 2>&1	# Lance l'exécution de package_check en fonction de l'architecture processeur indiquée.
-
-	sed -i 1d "$script_dir/work_list"	# Supprime la première ligne de la liste
-	echo -n "Le log complet pour cette application a été dupliqué et est accessible à l'adresse " >> "$script_dir/package_check/Test_results_cli.log"
-	if test -e "$script_dir/auto_build/auto.conf"	# Si le fichier de conf de auto_build existe, c'est une instance avec accès en ligne aux logs
-	then
-		DOMAIN=$(cat "$script_dir/auto_build/auto.conf" | grep DOMAIN= | cut -d '=' -f2)
-		CI_PATH=$(cat "$script_dir/auto_build/auto.conf" | grep CI_PATH= | cut -d '=' -f2)
-		echo "https://$DOMAIN/$CI_PATH/logs/$complete_log" >> "$script_dir/package_check/Test_results_cli.log"
+	# Else, it's a test on stable
 	else
-		echo "$script_dir/logs/$complete_log" >> "$script_dir/package_check/Test_results_cli.log"
+		echo "Test on stable instance"
+		# No subdir for the log file
+		log_dir=""
+		# Use a stable container
+		"$script_dir/auto_build/switch_container.sh" stable
 	fi
-	if [ "$inittime" -eq "0" ]; then
-		echo "!!! L'exécution de Package_check a été trop longue, le script a été avorté. !!! (PCHECK_AVORTED)" >> "$script_dir/package_check/Test_results_cli.log"
-	fi
-	cp "$script_dir/package_check/Test_results_cli.log" "$script_dir/logs/$APP_LOG"	# Copie le log des résultats
-	sed -i "1i-> Test $job\n" "$script_dir/logs/$APP_LOG"	# Ajoute le nom du job au début du log
+
+	#=================================================
+	# Create the lock file
+	#=================================================
+
+	# Create the lock file, and fill it with id of the current test.
+	echo "$id" > "$lock_pcheckCI"
+
+	# And give enought right to allow analyseCI.sh to modify this file.
+	chmod 666 "$lock_pcheckCI"
+
+	#=================================================
+	# Define the app log file
+	#=================================================
+
+	# From the repositery, remove http(s):// and replace all / by _ to build the log name
+	app_log=${log_dir}$(echo "${repo#http*://}" | sed 's@/@_@g')$architecture.log
+	# The complete log is the same of the previous log, with complete at the end.
+	complete_app_log=${log_dir}$(basename --suffix=.log "$app_log")_complete.log
+
+
+
+	#=================================================
+	# Launch the test with Package check
+	#=================================================
+
+	# Simply print the date, for information
 	date
-	echo "Fin du test sur $APP (id: $id)"
-	inittime=$(date +%s)	# Enregistre l'heure de démarrage de la boucle
-	while test -s "$script_dir/CI.lock"; do
-		if [ $(( $(date +%s) - $inittime )) -ge $timeout ]	# Vérifie la durée de la boucle
+	echo "A test with Package check will begin on $test_name (id: $id)"
+
+	# Start the time counter
+	set_timeout
+
+	cli_log="$script_dir/package_check/Test_results_cli.log"
+
+	# Exec package check according to the architecture
+	EXEC_PCHECK > "$cli_log" 2>&1
+
+
+
+
+	#=================================================
+	# Remove the first line of the work list
+	#=================================================
+
+	# After the test, it's removed from the work list
+	sed --in-place "/$id/d" "$work_list"
+
+
+	#=================================================
+	# Add in the cli log that the complete log was duplicated
+	#=================================================
+
+	echo -n "The complete log for this application was duplicated and is accessible at " >> "$cli_log"
+
+	# If it's the official CI
+	if test -e "$script_dir/auto_build/auto.conf"
+	then
+		domain=$(grep ^DOMAIN= "$script_dir/auto_build/auto.conf" | cut --delimiter='=' --fields=2)
+		ci_path=$(grep ^CI_PATH= "$script_dir/auto_build/auto.conf" | cut --delimiter='=' --fields=2)
+		# Print a url to access this log
+		echo "https://$domain/$ci_path/logs/$complete_app_log" >> "$cli_log"
+
+	# Else, it's simply a CI instance
+	else
+		# Print simply the path for this log
+		echo "$script_dir/logs/$complete_app_log" >> "$cli_log"
+	fi
+
+
+	# Copy the cli log, next to the complete log
+	cp "$cli_log" "$script_dir/logs/$app_log"
+
+
+	# Add the name of the test at the beginning of the log
+	sed --in-place "1i-> Test $test_name\n" "$script_dir/logs/$app_log"
+
+	#=================================================
+	# Finishing
+	#=================================================
+
+	date
+	echo "Test finished on $test_name (id: $id)"
+
+	# Inform analyseCI.sh that the test was finish
+	echo Finish > "$lock_pcheckCI"
+
+	# Start the time counter
+	set_timeout
+	# But shorten the time out
+	timeout=120
+
+	# Wait for the cleaning of the lock file. That means analyseCI.sh finished on its side.
+	while test -s "$lock_pcheckCI"
+	do
+		# Check the timeout
+		if ! timeout_expired
 		then
-			echo "Libération forcée du lock du CI"
-			break;	# Si la durée dépasse le timeout fixé, force l'arrêt du test pour ne pas bloquer la machine
+			echo "analyseCI.sh was too long to liberate the lock file, break the lock file."
+			break
 		fi
-		sleep 5	# Attend la fin du script analyseCI. Signalé par le vidage du fichier CI.lock
+		sleep 5
 	done
-	rm "$script_dir/CI.lock" # Libère le lock du CI
+
+	# Remove the lock file
+	rm "$lock_pcheckCI"
 	date
-	echo -e "Lock libéré pour $APP (id: $id)\n"
-	echo "\"$script_dir/auto_build/compare_level.sh\" \"$job\" \"$APP_LOG\" > \"$script_dir/auto_build/compare_level.log\" 2>&1" | at now + 5 min	# Diffère la notation du niveau de l'app, ou sa comparaison. (Le différer permet de démarrer un autre test le cas échéant.)
-	echo "\"$script_dir/auto_build/compare_level.sh\" \"$job\" \"$APP_LOG\" > \"$script_dir/auto_build/compare_level.log\" 2>&1"
+	echo -e "Lock released for $test_name (id: $id)\n"
+
+	#=================================================
+	# Compare the level of this app
+	#=================================================
+
+	# Delay the process of comparaison of the level
+	echo "\"$script_dir/auto_build/compare_level.sh\" \"$test_name\" \"$app_log\" > \"$script_dir/auto_build/compare_level.log\" 2>&1" | at now + 5 min
 fi
