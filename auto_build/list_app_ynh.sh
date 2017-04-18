@@ -19,52 +19,52 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 jenkins_job_path="/var/lib/jenkins/jobs"
 jenkins_url=$(grep DOMAIN= "$script_dir/auto.conf" | cut --delimiter='=' --fields=2)/$(grep CI_PATH= "$script_dir/auto.conf" | cut --delimiter='=' --fields=2)
 
-jenkins_java_call="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$jenkins_url/ -i \"$script_dir/jenkins/jenkins_key\""
+jenkins_java_call="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$jenkins_url/ -i $script_dir/jenkins/jenkins_key"
 
 JENKINS_BUILD_JOB () {
 	# Build a jenkins job
 
-	base_jenkins_job="$script_dir/jenkins/jenkins_job_"
+	base_jenkins_job="$script_dir/jenkins/jenkins_job"
 
 	# By default, use a standard job
-	cp "${base_jenkins_job}.xml" "${base_jenkins_job}load.xml"
+	cp "${base_jenkins_job}.xml" "${base_jenkins_job}_load.xml"
 
 	# If it's not the default architecture
 	if [ "$architecture" != "default" ]
 	then
 		# Use the arch job squeleton
-		cp "${base_jenkins_job}arch.xml" "${base_jenkins_job}load.xml"
+		cp "${base_jenkins_job}_arch.xml" "${base_jenkins_job}_load.xml"
 
 	# If it's not the stable type of test
 	elif [ "$type_test" != "stable" ]
 	then
 		# Use the nostable job squeleton
-		cp "${base_jenkins_job}nostable.xml" "${base_jenkins_job}load.xml"
+		cp "${base_jenkins_job}_nostable.xml" "${base_jenkins_job}_load.xml"
 	fi
 
 	# Replace the url of the git repository
-	sed --in-place "s@__REPOGIT__@$repo@g" "${base_jenkins_job}load.xml"
+	sed --in-place "s@__REPOGIT__@$repo@g" "${base_jenkins_job}_load.xml"
 
 	# Replace the path of analyseCI script
-	sed --in-place "s@__PATH__@$(dirname "$script_dir")@g" "${base_jenkins_job}load.xml"
+	sed --in-place "s@__PATH__@$(dirname "$script_dir")@g" "${base_jenkins_job}_load.xml"
 
 	# Determine a day for the monthly test (stable only)
-	sed --in-place "s@__DAY__@$(( $RANDOM % 30 +1 ))@g" "${base_jenkins_job}load.xml"
+	sed --in-place "s@__DAY__@$(( $RANDOM % 30 +1 ))@g" "${base_jenkins_job}_load.xml"
 
 	# Put the job name, without its architecture (arch only)
-	sed --in-place "s@__PARENT_NAME__@$(echo "$job_name" | sed "s@ .~.*~.@@")@g" "${base_jenkins_job}load.xml"
+	sed --in-place "s@__PARENT_NAME__@$(echo "$job_name" | sed "s@ .~.*~.@@")@g" "${base_jenkins_job}_load.xml"
 
 	# Replace the type of test (Testing or unstable only)
-	sed --in-place "s@__TYPE__@$type_test@g" "${base_jenkins_job}load.xml"
+	sed --in-place "s@__TYPE__@$type_test@g" "${base_jenkins_job}_load.xml"
 
 	# For unstable type, remove the trigger on all commmunity apps
 	if [ "$type_test" = "unstable" ]
 	then
-		sed --in-place 's@.*\*</spec>@#&@' "$script_dir/jenkins/jenkins_job_load.xml"
+		sed --in-place 's@.*\*</spec>@#&@' "${base_jenkins_job}_load.xml"
 	fi
 
 	# Create the job in jenkins
-	$jenkins_java_call create-job "$job_name" < "$script_dir/jenkins/jenkins_job_load.xml"
+	$jenkins_java_call create-job "$job_name" < "${base_jenkins_job}_load.xml"
 
 	# For stable type, start a test after adding it
 	if [ "$type_test" = "stable" ] && [ "$architecture" = "default" ]

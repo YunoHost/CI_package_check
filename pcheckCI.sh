@@ -40,6 +40,8 @@ check_analyseCI () {
 	# Get the pid of analyseCI
 	local analyseCI_pid=$(cat "$analyseCI_indic" | cut --delimiter=';' --fields=1)
 	local analyseCI_id=$(cat "$analyseCI_indic" | cut --delimiter=';' --fields=2)
+	local finish=0
+
 
 	# Infinite loop
 	while true
@@ -48,6 +50,8 @@ check_analyseCI () {
 		# Check if analyseCI still running by its pid
 		if ! ps --pid $analyseCI_pid | grep --quiet $analyseCI_pid
 		then
+			# Check if the lock file was deleted. That means analyseCI has finish normally
+			test -e "$lock_pcheckCI" || finish=1
 			break
 		fi
 
@@ -61,9 +65,13 @@ check_analyseCI () {
 		sleep 30
 	done
 
-	echo -e "\e[91m\e[1m!!! analyseCI was cancelled, stop this test !!!\e[0m"
-	# Stop all current tests
-	"$script_dir/force_stop.sh"
+	if [ $finish -eq 0 ]
+	then
+		echo -e "\e[91m\e[1m!!! analyseCI was cancelled, stop this test !!!\e[0m"
+		# Stop all current tests
+		"$script_dir/force_stop.sh"
+		echo ""
+	fi
 }
 
 #=================================================
@@ -211,11 +219,11 @@ then
 		date
 
 		if test -e "$lock_package_check"; then
-			echo "The file $lock_package_check exist. Package check is already used."
+			echo "The file $(basename "$lock_package_check") exist. Package check is already used."
 		fi
 
 		if test -e "$lock_pcheckCI"; then
-			echo "The file $lock_pcheckCI exist. Another test is already in progress."
+			echo "The file $(basename "$lock_pcheckCI") exist. Another test is already in progress."
 		fi
 
 		echo "Execution cancelled..."
