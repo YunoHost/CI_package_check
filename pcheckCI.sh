@@ -35,7 +35,7 @@ timeout_expired () {
 # Check if the analyseCI is still running
 check_analyseCI () {
 
-	sleep 30
+	sleep 120
 
 	# Get the pid of analyseCI
 	local analyseCI_pid=$(cat "$analyseCI_indic" | cut --delimiter=';' --fields=1)
@@ -50,6 +50,7 @@ check_analyseCI () {
 		# Check if analyseCI still running by its pid
 		if ! ps --pid $analyseCI_pid | grep --quiet $analyseCI_pid
 		then
+			echo "analyseCI stopped."
 			# Check if the lock file was deleted. That means analyseCI has finish normally
 			test -e "$lock_pcheckCI" || finish=1
 			break
@@ -58,6 +59,8 @@ check_analyseCI () {
 		# Check if analyseCI wait for the correct id.
 		if [ "$analyseCI_id" != "$id" ]
 		then
+			echo "analyseCI wait for another pid."
+			finish=1
 			break
 		fi
 
@@ -72,6 +75,11 @@ check_analyseCI () {
 		"$script_dir/force_stop.sh"
 		echo ""
 	fi
+
+	# Remove the lock file
+	rm "$lock_pcheckCI"
+	date
+	echo -e "Lock released for $test_name (id: $id)\n"
 }
 
 #=================================================
@@ -398,15 +406,10 @@ then
 		sleep 5
 	done
 
-	# Remove the lock file
-	rm "$lock_pcheckCI"
-	date
-	echo -e "Lock released for $test_name (id: $id)\n"
-
 	#=================================================
 	# Compare the level of this app
 	#=================================================
 
 	# Delay the process of comparaison of the level
-	echo "\"$script_dir/auto_build/compare_level.sh\" \"$test_name\" \"$app_log\" > \"$script_dir/auto_build/compare_level.log\" 2>&1" | at now + 5 min
+	echo "\"$script_dir/auto_build/compare_level.sh\" \"$test_name\" \"$app_log\" >> \"$script_dir/auto_build/compare_level.log\" 2>&1" | at now + 5 min
 fi

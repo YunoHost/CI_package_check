@@ -41,15 +41,6 @@ sleep "0.$milli_sleep"
 id=$(head --lines=20 /dev/urandom | tr --complement --delete 'A-Za-z0-9' | head --bytes=10)
 
 #=================================================
-# Add a test to the work_list
-#=================================================
-
-echo "$repo;$id;$test_name" >> "$script_dir/work_list"
-
-# This file will be read by pcheckCI.sh
-# And pcheckCI.sh will launch a test by using the informations in this line.
-
-#=================================================
 # Execution indicator
 #=================================================
 
@@ -63,6 +54,15 @@ exec_indicator () {
 }
 # Start the indicator loop in background.
 exec_indicator &
+
+#=================================================
+# Add a test to the work_list
+#=================================================
+
+echo "$repo;$id;$test_name" >> "$script_dir/work_list"
+
+# This file will be read by pcheckCI.sh
+# And pcheckCI.sh will launch a test by using the informations in this line.
 
 #=================================================
 # Time out

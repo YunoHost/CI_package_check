@@ -104,6 +104,8 @@ job_path=$jenkins_job_path
 
 get_arch () {
 	architecture="$(echo $(expr match "$appname" '.*\((~.*~)\)') | cut --delimiter='(' --fields=2 | cut --delimiter=')' --fields=1)"
+	# Fix at 'default' is none architecture is specified.
+	test -n "$architecture" || architecture=default
 }
 
 #=================================================
@@ -284,8 +286,6 @@ parsed_current_jobs="$script_dir/parsed_current_jobs"
 message_file="$script_dir/job_send"
 # Purge the message file
 > "$message_file"
-
-architecture=default
 
 # Work on the official list, then community list
 for list in official community
