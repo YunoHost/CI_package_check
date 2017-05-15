@@ -25,7 +25,7 @@ else
 fi
 
 # Get the url of the CI from the config file
-CI_url=$(grep DOMAIN= "$script_dir/auto.conf" | cut --delimiter='=' --fields=2)/$(grep CI_PATH= "$script_dir/auto.conf" | cut --delimiter='=' --fields=2)
+CI_url="https://$(grep DOMAIN= "$script_dir/auto.conf" | cut --delimiter='=' --fields=2)/$(grep CI_PATH= "$script_dir/auto.conf" | cut --delimiter='=' --fields=2)"
 
 #=================================================
 # Get the level from the log
@@ -99,7 +99,7 @@ then
 		if [ "$app_level" -ne "$stable_level" ]
 		then
 			# If the levels are different, add a line to the message to send
-			echo "- Application $test_name change from $stable_level in stable to $app_level in $type. ($CI_url/logs/$app_log)" >> "$message_file"
+			echo "- Application $test_name change from $stable_level in stable to $app_level in $type. ($CI_url/$test_name)" >> "$message_file"
 		fi
 	done < "$list_file"
 

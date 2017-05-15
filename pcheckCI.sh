@@ -61,6 +61,10 @@ check_analyseCI () {
 		then
 			echo "analyseCI wait for another pid."
 			finish=1
+
+			# Remove this test from the work_list
+			grep --quiet "$id" "$work_list" & sed --in-place "/$id/d" "$work_list"
+
 			break
 		fi
 
@@ -77,7 +81,7 @@ check_analyseCI () {
 	fi
 
 	# Remove the lock file
-	rm "$lock_pcheckCI"
+	rm -f "$lock_pcheckCI"
 	date
 	echo -e "Lock released for $test_name (id: $id)\n"
 }
@@ -348,8 +352,7 @@ then
 	#=================================================
 
 	# After the test, it's removed from the work list
-	sed --in-place "/$id/d" "$work_list"
-
+	grep --quiet "$id" "$work_list" & sed --in-place "/$id/d" "$work_list"
 
 	#=================================================
 	# Add in the cli log that the complete log was duplicated
@@ -401,10 +404,14 @@ then
 		if ! timeout_expired
 		then
 			echo "analyseCI.sh was too long to liberate the lock file, break the lock file."
-			break
 		fi
 		sleep 5
 	done
+
+	# Remove the lock file
+	rm "$lock_pcheckCI"
+	date
+	echo -e "Lock released for $test_name (id: $id)\n"
 
 	#=================================================
 	# Compare the level of this app
