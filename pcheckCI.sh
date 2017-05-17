@@ -51,19 +51,16 @@ check_analyseCI () {
 		if ! ps --pid $analyseCI_pid | grep --quiet $analyseCI_pid
 		then
 			echo "analyseCI stopped."
-			# Check if the lock file was deleted. That means analyseCI has finish normally
-			test -e "$lock_pcheckCI" || finish=1
+			# Check if the lock file contains "Remove". That means analyseCI has finish normally
+			[ "$(cat "$lock_pcheckCI")" == "Remove" ] && finish=1
 			break
 		fi
 
 		# Check if analyseCI wait for the correct id.
 		if [ "$analyseCI_id" != "$id" ]
 		then
-			echo "analyseCI wait for another pid."
-			finish=1
-
-			# Remove this test from the work_list
-			grep --quiet "$id" "$work_list" & sed --in-place "/$id/d" "$work_list"
+			echo "analyseCI wait for another id."
+			finish=2
 
 			break
 		fi
@@ -72,18 +69,27 @@ check_analyseCI () {
 		sleep 30
 	done
 
+	# if finish equal 0, analyseCI was aborted, in this case, kill all current process.
 	if [ $finish -eq 0 ]
 	then
 		echo -e "\e[91m\e[1m!!! analyseCI was cancelled, stop this test !!!\e[0m"
 		# Stop all current tests
 		"$script_dir/force_stop.sh"
 		echo ""
-	fi
 
-	# Remove the lock file
-	rm -f "$lock_pcheckCI"
-	date
-	echo -e "Lock released for $test_name (id: $id)\n"
+	# If finish equal 1, analyseCI finished correctly. It's the normal way to ending this script. So remove the lock file
+	elif [ $finish -eq 1 ]
+	then
+		# Remove the lock file
+		rm -f "$lock_pcheckCI"
+		date
+		echo -e "Lock released for $test_name (id: $id)\n"
+
+	# Else, finish equal 2, analyseCI is waiting for another test (another id)
+	else
+		# Remove this test from the work_list
+		grep --quiet "$id" "$work_list" & sed --in-place "/$id/d" "$work_list"
+	fi
 }
 
 #=================================================
@@ -408,10 +414,8 @@ then
 		sleep 5
 	done
 
-	# Remove the lock file
-	rm "$lock_pcheckCI"
-	date
-	echo -e "Lock released for $test_name (id: $id)\n"
+	# Inform check_analyseCI that the test is over
+	echo Remove > "$lock_pcheckCI"
 
 	#=================================================
 	# Compare the level of this app
