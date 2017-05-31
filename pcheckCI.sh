@@ -144,12 +144,11 @@ PCHECK_LOCAL () {
 		# Check if the timeout is not expired
 		if ! timeout_expired
 		then
-			# If the timeout is expired, kill package check
-			kill -s SIGTERM $package_check_pid
 			echo -e "\e[91m\e[1m!!! Package check was too long, its execution was aborted. !!! (PCHECK_AVORTED)\e[0m" | tee --append "$cli_log"
 
 			# Stop all current tests
-			"$script_dir/force_stop.sh"
+			"$script_dir/force_stop.sh" &
+			exit 1
 		fi
 		sleep 30
 	done
