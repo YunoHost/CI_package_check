@@ -30,15 +30,15 @@ type=$1
 #=================================================
 
 # If the main snapshot is a symbolic link, it's the official CI instance
-if [ -h /var/lib/lxcsnaps/$LXC_NAME ]
+if [ -h /var/lib/lxcsnaps/$lxc_name ]
 then
 	# Check if the symbolic link is already good.
 	if ! sudo ls -l /var/lib/lxcsnaps/pchecker_lxc | grep --quiet "_$type"
 	then
 		echo "> Changement de conteneur vers $type"
 		# Remove the previous symbolic link
-		sudo rm /var/lib/lxcsnaps/$LXC_NAME
+		sudo rm /var/lib/lxcsnaps/$lxc_name
 		# And recreate it with a another linked snapshot
-		sudo ln --symbolic --force /var/lib/lxcsnaps/pcheck_$type /var/lib/lxcsnaps/$LXC_NAME
+		sudo ln --symbolic --force /var/lib/lxcsnaps/pcheck_$type /var/lib/lxcsnaps/$lxc_name
 	fi
 fi

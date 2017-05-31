@@ -1,9 +1,10 @@
 #/bin/bash
 
-token=TOKEN_SCALEWAY
+# Récupère le dossier du script
+if [ "$(echo "$0" | cut -c1)" = "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
-#Serveur de base: VC1S Jessie
-server_id=SERVER_ID
+token=$(grep "token" "$script_dir/config" | cut --delimiter='=' --fields=2)
+server_id=$(grep "server_id" "$script_dir/config" | cut --delimiter='=' --fields=2)
 
 SERVER_STATUS () {
 		# Surveille l'état du serveur

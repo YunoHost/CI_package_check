@@ -106,6 +106,8 @@ else
 	echo -e "\e[91m$CI n'a pas les droits suffisants pour accéder aux scripts !\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 fi
 
+cp "$script_dir/config.modele" "$script_dir/config"	# Créer le fichier de config
+
 echo ""
-echo -e "\e[92mLe script scaleway_api doit être modifié pour renseigner le token et le server_id.\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
+echo -e "\e[92mLe fichier config doit être modifié pour renseigner le token et le server_id.\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 echo -e "\e[92mCela permettra au serveur de s'arrêter de lui-même en cas d'inactivité.\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
