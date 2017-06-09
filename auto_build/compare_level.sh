@@ -35,6 +35,7 @@ CI_url="https://$(grep DOMAIN= "$script_dir/auto.conf" | cut --delimiter='=' --f
 app_level="$(tac "$script_dir/../logs/$app_log" | grep "Level of this application: " --max-count=1)"
 # And keep only the level
 app_level="${app_level##*: }"
+app_level=$(echo "$app_level" | cut -d' ' -f1)
 
 #=================================================
 # Store the level in a list
