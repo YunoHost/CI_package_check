@@ -89,18 +89,18 @@ then
 		# Get the name of the test, from the list
 		test_name=$(echo ${line%:*})
 		# And remove the type, to keep only the name of the app
-		test_name=$(echo ${test_name% \($type\)})
+		stable_test_name=$(echo ${test_name% \($type\)})
 		# Get the level
 		app_level=$(echo ${line##*:})
 
 		# Get the level in the stable list
-		stable_level=$(grep "^$test_name:" "$script_dir/list_level_stable" | cut --delimiter=: --fields=2)
+		stable_level=$(grep "^$stable_test_name:" "$script_dir/list_level_stable" | cut --delimiter=: --fields=2)
 
 		# Compare the levels
 		if [ "$app_level" -ne "$stable_level" ]
 		then
 			# If the levels are different, add a line to the message to send
-			echo "- Application $test_name change from $stable_level in stable to $app_level in $type. ($CI_url/$test_name)" >> "$message_file"
+			echo "- Application $stable_test_name change from $stable_level in stable to $app_level in $type. ($CI_url/$test_name)" >> "$message_file"
 		fi
 	done < "$list_file"
 
@@ -132,7 +132,6 @@ then
 		"$xmpppost" "$(cat "$message_file")"
 
 		# Remove the list of levels and the message file
-		rm "$script_dir/list_level_$type"
 		rm "$message_file"
 	fi
 fi
