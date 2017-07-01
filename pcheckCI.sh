@@ -75,7 +75,7 @@ check_analyseCI () {
 		echo -e "\e[91m\e[1m!!! analyseCI was cancelled, stop this test !!!\e[0m"
 		# Stop all current tests
 		"$script_dir/force_stop.sh"
-		echo ""
+		exit 1
 
 	# If finish equal 1, analyseCI finished correctly. It's the normal way to ending this script. So remove the lock file
 	elif [ $finish -eq 1 ]
@@ -87,8 +87,11 @@ check_analyseCI () {
 
 	# Else, finish equal 2, analyseCI is waiting for another test (another id)
 	else
-		# Remove this test from the work_list
-		grep --quiet "$id" "$work_list" & sed --in-place "/$id/d" "$work_list"
+		# Replace the id for force_stop
+		echo "$analyseCI_pid\nforce_stop" > "$lock_pcheckCI"
+		# Stop all current tests
+		"$script_dir/force_stop.sh"
+		exit 1
 	fi
 }
 

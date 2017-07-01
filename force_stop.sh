@@ -5,7 +5,7 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 lock_pcheckCI="$script_dir/CI.lock"
 
 # Get the id of the current test
-id=$(cat "$lock_pcheckCI")
+id=$(head -n1 "$lock_pcheckCI")
 
 # Inform analyseCI.sh that the test was finish
 echo Finish > "$lock_pcheckCI"
