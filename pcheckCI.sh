@@ -100,21 +100,14 @@ PCHECK_SSH () {
 	echo "Start a test on $ssh_host for $architecture architecture"
 	echo "Initialize an ssh connection"
 
-	# Try to connect first
-	ssh $ssh_user@$ssh_host -p $ssh_port -i "$ssh_key" "exit"
-	if [ "$?" -ne 0 ]; then
-		echo "Failed to initiate an ssh connection"
+	# Make a call to analyseCI.sh through ssh
+	ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key \
+		"\"$pcheckci_path/analyseCI.sh\" \"$repo\" \"$test_name\""
 
-	else
-		# Make a call to analyseCI.sh through ssh
-		ssh $ssh_user@$ssh_host -p $ssh_port -i "$ssh_key" \
-			"\"$pcheckci_path/analyseCI.sh\" \"$repo\" \"$test_name\""
-
-		# Copy the complete log from the distant machine
-		scp -P $ssh_port -i "$ssh_key" \
-			$ssh_user@$ssh_host:"$pcheckci_path/package_check/Complete.log" \
-			"$script_dir/logs/$complete_app_log"
-	fi
+	# Copy the complete log from the distant machine
+	scp -P $ssh_port -i $ssh_key \
+		$ssh_user@$ssh_host:"$pcheckci_path/package_check/Complete.log" \
+		"$script_dir/logs/$complete_app_log"
 }
 
 #=================================================
@@ -162,6 +155,46 @@ PCHECK_LOCAL () {
 #=================================================
 
 EXEC_PCHECK () {
+	# Sort of load balancing to choose which instance will be used.
+	choose_a_instance () {
+		# As argument, take the list of all instance, one per line.
+		local list_instance="$@"
+
+		# Create an array to store the informations about each instance
+		local -a instances='()'
+		local max_weight=0
+		# Read each line of the argument, means each instance.
+		while read local line
+		do
+			# Remove '> ' at the beginning
+			line=${line#> }
+			# Keep only the number of this instance, like a id
+			local num="${line%%.*}"
+			# Grab the weight of this instance
+			local weight="${line##*=}"
+			# Add up the weights of each instance to have a total weight
+			max_weight=$(( max_weight + weight ))
+			# Add a new field to the array.
+			instances+=($num:$max_weight)
+		done <<< "$list_instance"
+
+		local max_instance=${#instances[@]}
+		# Find a random value between 1 and max_weight
+		local find_instance=$(( ( RANDOM % $max_weight ) +1 ))
+
+		# With this random value, find the associate instance, depending of the weight of each one.
+		for i in `seq 0 $(( max_instance - 1))`
+		do
+			weight=$(echo ${instances[$i]} | cut -d: -f2)
+
+			if [ $find_instance -le $weight ]; then
+				# Return the number of this instance (Its ID)
+				echo $(echo ${instances[$i]} | cut -d: -f1)
+				return 0
+			fi
+		done
+	}
+
 	# Check the asked architecture
 	# And define a prefix to get the infos in the config file.
 	if [ "$architecture" = "~x86-64b~" ]
@@ -193,20 +226,45 @@ EXEC_PCHECK () {
 	# If a SSH instance type is asked
 	if [ "$instance" = "SSH" ]
 	then
-		# Get all the informations for the connexion in the config file
-		ssh_host=$(get_info_in_config "> $arch_pre.ssh_host=")
-		ssh_user=$(get_info_in_config "> $arch_pre.ssh_user=")
-		ssh_key=$(get_info_in_config "> $arch_pre.ssh_key=")
-		pcheckci_path=$(get_info_in_config "> $arch_pre.pcheckci_path=")
-		ssh_port=$(get_info_in_config "> $arch_pre.ssh_port=")
+		# List all instance in the config file by filtering "> x.arch.weight"
+		list_instance=$(grep "^> .*$arch_pre.weight=" "$script_dir/config")
+
+		local ssh=0
+		while [ $ssh -eq 0 ]
+		do
+			CI_num=$(choose_a_instance "$list_instance")
+
+			# Get all the informations for the connexion in the config file
+			ssh_host=$(get_info_in_config "> $CI_num.$arch_pre.ssh_host=")
+			ssh_user=$(get_info_in_config "> $CI_num.$arch_pre.ssh_user=")
+			ssh_key=$(get_info_in_config "> $CI_num.$arch_pre.ssh_key=")
+			pcheckci_path=$(get_info_in_config "> $CI_num.$arch_pre.pcheckci_path=")
+			ssh_port=$(get_info_in_config "> $CI_num.$arch_pre.ssh_port=")
+
+			# Try to connect first
+			ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key "exit"
+			if [ "$?" -ne 0 ]; then
+				echo "Failed to initiate an ssh connection on $ssh_host"
+				list_instance="$(echo "$list_instance" | sed "/^> $CI_num./d")"
+				if [ -z "$list_instance" ]; then
+					echo "No ssh instances available..."
+					break
+				fi
+			else
+				echo "Connection to $ssh_host successful"
+				ssh=1
+			fi
+		done
 
 		# Start a test through SSH
-		PCHECK_SSH
+		if [ $ssh -eq 1 ]; then
+			PCHECK_SSH > "$cli_log" 2>&1
+		fi
 
 	# Or start a test on the local instance of Package check
 	else
 
-		PCHECK_LOCAL
+		PCHECK_LOCAL > "$cli_log" 2>&1
 	fi
 }
 
@@ -347,7 +405,7 @@ then
 	cli_log="$script_dir/package_check/Test_results_cli.log"
 
 	# Exec package check according to the architecture
-	EXEC_PCHECK > "$cli_log" 2>&1
+	EXEC_PCHECK
 
 
 

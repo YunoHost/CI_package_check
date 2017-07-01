@@ -14,59 +14,74 @@ timeout=10800
 ## Réglages pour les tests multi-architecture
 # Architecture ~x86-64b~
 # LOCAL ou SSH. Pour utiliser SSH, les informations qui suivent doivent être renseignées.
+# Initiez une connxion SSH en root pour vérifier et valider l'hôte.
 > 64.Instance=LOCAL
 
+
 # Nom de domaine ou IP de la machine distante
-> 64.ssh_host=domain.tld
+> 0.64.ssh_host=domain.tld
 
 # Nom de l'utilisateur autorisé à se connecté avec la clé ssh
-> 64.ssh_user=user
+> 0.64.ssh_user=user
 
 # Emplacement de la clé privée pour la connexion ssh
-> 64.ssh_key="path_to_private_key"
+> 0.64.ssh_key="path_to_private_key"
 
-# Emplacement de analyseCI.sh sur la machine distante depuis ssh.
-> 64.pcheckci_path="path_to_analyseCI.sh"
+# Emplacement de CI_package_check sur la machine distante depuis ssh.
+> 0.64.pcheckci_path="CI_package_check"
 
 # Port ssh
-> 64.ssh_port=22
+> 0.64.ssh_port=22
+
+# Poids de cette instance. Plus le poids est important, plus l'instance est susceptible d'être utilisée.
+> 0.64.weight=50
 
 
 # Architecture ~x86-32b~
 # LOCAL ou SSH. Pour utiliser SSH, les informations qui suivent doivent être renseignées.
+# Initiez une connxion SSH en root pour vérifier et valider l'hôte.
 > 32.Instance=LOCAL
 
+
 # Nom de domaine ou IP de la machine distante
-> 32.ssh_host=domain.tld
+> 0.32.ssh_host=domain.tld
 
 # Nom de l'utilisateur autorisé à se connecté avec la clé ssh
-> 32.ssh_user=user
+> 0.32.ssh_user=user
 
 # Emplacement de la clé privée pour la connexion ssh
-> 32.ssh_key="path_to_private_key"
+> 0.32.ssh_key="path_to_private_key"
 
-# Emplacement de analyseCI.sh sur la machine distante depuis ssh.
-> 32.pcheckci_path="path_to_analyseCI.sh"
+# Emplacement de CI_package_check sur la machine distante depuis ssh.
+> 0.32.pcheckci_path="CI_package_check"
 
 # Port ssh
-> 32.ssh_port=22
+> 0.32.ssh_port=22
+
+# Poids de cette instance. Plus le poids est important, plus l'instance est susceptible d'être utilisée.
+> 0.32.weight=50
 
 
 # Architecture ~ARM~
 # LOCAL ou SSH. Pour utiliser SSH, les informations qui suivent doivent être renseignées.
+# Initiez une connxion SSH en root pour vérifier et valider l'hôte.
 > arm.Instance=LOCAL
 
+
 # Nom de domaine ou IP de la machine distante
-> arm.ssh_host=domain.tld
+> 0.arm.ssh_host=domain.tld
 
 # Nom de l'utilisateur autorisé à se connecté avec la clé ssh
-> arm.ssh_user=user
+> 0.arm.ssh_user=user
 
 # Emplacement de la clé privée pour la connexion ssh
-> arm.ssh_key="path_to_private_key"
+> 0.arm.ssh_key="path_to_private_key"
 
-# Emplacement de analyseCI.sh sur la machine distante depuis ssh.
-> arm.pcheckci_path="path_to_analyseCI.sh"
+# Emplacement de CI_package_check sur la machine distante depuis ssh.
+> 0.arm.pcheckci_path="CI_package_check"
 
 # Port ssh
-> arm.ssh_port=22
+> 0.arm.ssh_port=22
+
+# Poids de cette instance. Plus le poids est important, plus l'instance est susceptible d'être utilisée.
+> 0.arm.weight=50
