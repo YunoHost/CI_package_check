@@ -7,6 +7,7 @@
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
 user_ssh=pcheck
+chroot_dir=/home/$user_ssh
 
 # Remove the chroot
 if [ $# -gt 0 ]
@@ -34,12 +35,15 @@ then
 	fi
 fi
 
+echo -e "\e[1m> Installe mlocate.\e[0m"
+sudo apt-get update
+sudo apt-get install mlocate
+
 echo -e "\e[1m> Créer le groupe $user_ssh.\e[0m"
 sudo addgroup $user_ssh
 
 echo -e "\e[1m> Créer l'user $user_ssh.\e[0m"
 sudo useradd $user_ssh --gid $user_ssh -m --shell /bin/bash
-chroot_dir=/home/$user_ssh
 
 echo -e "\e[1m> Copie le squelette de home.\e[0m"
 sudo cp -a /etc/skel/. $chroot_dir
@@ -52,7 +56,7 @@ sudo mkdir $chroot_dir/{dev,bin,lib,lib64}
 echo -e "\e[1m> Copie des exécutables dans le chroot.\e[0m"
 
 echo -e "\e[1m> Créer un /dev/urandom.\e[0m"
-sudo mknod $chroot_dir/dev/urandom c 1 8
+sudo mknod $chroot_dir/dev/urandom c 1 9
 sudo chmod 666 $chroot_dir/dev/urandom
 
 echo -e "\e[1m> Copie /dev/null.\e[0m"
@@ -128,6 +132,7 @@ echo -e "\e[1m> wc.\e[0m"
 cp_which wc
 locate_and_cp libc.so.6
 
+sudo git clone https://github.com/YunoHost/CI_package_check "$chroot_dir/CI_package_check"
 
 echo -e "\e[1m> On ajoute le chroot pour l'user.\e[0m"
 echo -e "\nMatch User $user_ssh # $user_ssh CI" | sudo tee -a /etc/ssh/sshd_config
@@ -137,7 +142,7 @@ echo -e "\tX11Forwarding no # $user_ssh CI" | sudo tee -a /etc/ssh/sshd_config
 
 echo -e "\e[1m> Mise en place de la clé ssh.\e[0m"
 sudo mkdir $chroot_dir/.ssh
-sudo mv "$script_dir/official_CI.pub" $chroot_dir/.ssh/authorized_keys
+sudo mv "$chroot_dir/CI_package_check/auto_build/official_CI.pub" $chroot_dir/.ssh/authorized_keys
 sudo chown $user_ssh: -R $chroot_dir/.ssh/
 
 echo -e "\e[1m> Et bridage de la clé.\e[0m"
@@ -146,5 +151,4 @@ sudo service ssh reload
 
 
 echo -e "\e[1m> Installe CI_package_check dans le dossier.\e[0m"
-sudo git clone https://github.com/YunoHost/CI_package_check "$chroot_dir/CI_package_check"
 sudo "$chroot_dir/CI_package_check/build_CI.sh"
