@@ -467,11 +467,12 @@ then
 	while test -s "$lock_pcheckCI"
 	do
 		# Check the timeout
+		sleep 5
 		if ! timeout_expired
 		then
 			echo "analyseCI.sh was too long to liberate the lock file, break the lock file."
+			break
 		fi
-		sleep 5
 	done
 
 	# Inform check_analyseCI that the test is over
