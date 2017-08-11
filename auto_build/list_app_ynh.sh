@@ -113,8 +113,19 @@ get_arch () {
 #=================================================
 
 BUILD_JOB () {
+
+	# Get the architecture for this job
+	get_arch
+
+	if [ "$architecture" == "default" ]
+	then
+		type_of_test="stable testing unstable"
+	else
+		type_of_test="stable"
+	fi
+
 	# Build a job for stable, testing and unstable
-	for type_test in stable testing unstable
+	for type_test in $type_of_test
 	do
 		job_name="$appname"
 		if [ "$type_test" != "stable" ]
@@ -122,17 +133,25 @@ BUILD_JOB () {
 			job_name="$appname ($type_test)"
 		fi
 
-		# Get the architecture for this job
-		get_arch
-
 		# Build a job
 		JENKINS_BUILD_JOB
 	done
 }
 
 REMOVE_JOB () {
+
+	# Get the architecture for this job
+	get_arch
+
+	if [ "$architecture" == "default" ]
+	then
+		type_of_test="stable testing unstable"
+	else
+		type_of_test="stable"
+	fi
+
 	# Remove the jobs for stable, testing and unstable
-	for type_test in stable testing unstable
+	for type_test in $type_of_test
 	do
 		job_name="$appname"
 		local log_type_path=""
@@ -142,9 +161,6 @@ REMOVE_JOB () {
 			log_type_path="$type_test/"
 		fi
 		JENKINS_REMOVE_JOB
-
-		# Get the architecture for this job
-		get_arch
 
 		# Build the log names
 		if [ "$architecture" = "default" ]; then
