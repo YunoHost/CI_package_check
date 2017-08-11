@@ -261,13 +261,13 @@ EXEC_PCHECK () {
 
 		# Start a test through SSH
 		if [ $ssh -eq 1 ]; then
-			PCHECK_SSH > "$cli_log" 2>&1
+			PCHECK_SSH
 		fi
 
 	# Or start a test on the local instance of Package check
 	else
 
-		PCHECK_LOCAL > "$cli_log" 2>&1
+		PCHECK_LOCAL
 	fi
 }
 
@@ -293,6 +293,9 @@ then
 	if test -e "$lock_package_check" || test -e "$lock_pcheckCI"
 	then
 
+		# Start the time counter
+		set_timeout
+
 		# Simply print the date, for information
 		date
 
@@ -306,7 +309,7 @@ then
 			local last_change=$(stat --printf=%Y "$file")
 			# Determine the max age of the file
 			local maxtime=$(( $last_change + $maxage ))
-			if [$(date +%s) -gt $maxtime ]
+			if [ $(date +%s) -gt $maxtime ]
 			then # If $maxtime is outdated, this lock file is too old.
 				echo 1
 			else
@@ -325,17 +328,16 @@ then
 			if [ "$(cat "$lock_pcheckCI")" == "Finish" ] || [ "$(cat "$lock_pcheckCI")" == "Remove" ]
 			then
 				# If the lock file contains Finish or Remove, keep the lock only if is younger than 15 minutes
-				remove_lock=$(if_file_overdate "$lock_package_check" 900)
+				remove_lock=$(if_file_overdate "$lock_pcheckCI" 900)
 			else
 				# Else, keep it if is younger than $timeout + 30 minutes
-				remove_lock=$(if_file_overdate "$lock_package_check" $(( $timeout + 1800 )))
+				remove_lock=$(if_file_overdate "$lock_pcheckCI" $(( $timeout + 1800 )))
 			fi
 		fi
 
 		echo "Execution cancelled..."
 
 		if [ $remove_lock -eq 1 ]; then
-		else
 			echo "The lock files are too old. We're going to kill them !"
 			"$script_dir/force_stop.sh"
 		fi
@@ -443,7 +445,7 @@ then
 	cli_log="$script_dir/package_check/Test_results_cli.log"
 
 	# Exec package check according to the architecture
-	EXEC_PCHECK
+	EXEC_PCHECK > "$cli_log" 2>&1
 
 
 
