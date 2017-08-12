@@ -253,10 +253,10 @@ CLEAR_JOB () {
 	do
 
 		# Check if this app can be found in the yunohost list
-		if ! grep --quiet "$app" "$ynh_list"
+		if ! grep --quiet "^$app$" "$ynh_list"
 		then
 			# Get the name of this app
-			appname=$(grep "$app" "$parsed_current_jobs" | cut --delimiter=';' --fields=2)
+			appname=$(grep "^$app$" "$parsed_current_jobs" | cut --delimiter=';' --fields=2)
 
 			echo "Remove the jobs for the application $appname" | tee -a "$message_file"
 
@@ -277,7 +277,7 @@ ADD_JOB () {
 	do
 
 		# Check if this app can be found in the list of current jobs
-		if ! grep --quiet "$app" "$parsed_current_jobs"
+		if ! grep --quiet "^$app$" "$parsed_current_jobs"
 		then
 			# Get the name of this app
 			appname=$(echo "$app" | cut --delimiter=';' --fields=2)
