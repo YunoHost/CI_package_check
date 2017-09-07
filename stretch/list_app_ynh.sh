@@ -19,7 +19,7 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 jenkins_job_path="/var/lib/jenkins/jobs"
 jenkins_url=localhost:8080
 
-jenkins_java_call="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s http://$jenkins_url"
+jenkins_java_call="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s http://$jenkins_url -i $script_dir/jenkins_key"
 
 JENKINS_BUILD_JOB () {
 	# Build a jenkins job

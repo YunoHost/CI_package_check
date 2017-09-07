@@ -5,7 +5,9 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 
 echo -e "\e[1m> Installation des dépendances de jenkins...\e[0m"
 apt-get update
-apt-get install default-jre-headless daemon psmisc net-tools git
+apt-get install default-jre-headless daemon psmisc net-tools git ifupdown sudo
+
+mkdir -p /etc/network/interfaces.d
 
 echo -e "\e[1m> Installation de jenkins...\e[0m"
 version="2.60.3"
@@ -16,6 +18,23 @@ rm jenkins_${version}_all.deb
 echo -e "\e[1m> Configure jenkins...\e[0m"
 # Ignore le Setup Wizard
 sed -i "s@-Djava.awt.headless=true@& -Djenkins.install.runSetupWizard=false@g" /etc/default/jenkins
+
+# Mise en place de la connexion ssh pour jenkins cli.
+# Création de la clé ssh
+echo -e "\e[1m> Créer la clé ssh pour jenkins-cli.\e[0m" 
+ssh-keygen -t rsa -b 4096 -N "" -f "$script_dir/jenkins_key" > /dev/null 
+chown root: "$script_dir/jenkins_key" 
+chmod 600 "$script_dir/jenkins_key" 
+
+CI_USER=ynh_ci
+
+# Configuration de la clé pour l'user dans jenkins
+echo -e "\e[1m> Créer la base de la configuration de l'utilisateur jenkins.\e[0m" 
+mkdir -p "/var/lib/jenkins/users/$CI_USER"      # Créer le dossier de l'utilisateur
+cp "$script_dir/jenkins/user_config.xml" "/var/lib/jenkins/users/$CI_USER/config.xml"   # Copie la config de base.
+sed -i "s/__USER__/$CI_USER/g" "/var/lib/jenkins/users/$CI_USER/config.xml"     # Ajoute le nom de l'utilisateur
+sed -i "s|__SSH_KEY__|$(cat "$script_dir/jenkins_key.pub")|"  "/var/lib/jenkins/users/$CI_USER/config.xml"      # Ajoute la clé publique
+chown jenkins: -R "/var/lib/jenkins/users"
 
 echo -e "\e[1m> Restart jenkins...\e[0m"
 sleep 1
