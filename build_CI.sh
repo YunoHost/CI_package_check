@@ -8,6 +8,9 @@ GET_CI_URL () {
 	sudo yunohost app map | grep $CI -m1 | cut -d: -f1
 }
 
+sudo apt-get update > /dev/null
+sudo apt-get install -y git at
+
 touch "$script_dir/CI.lock"	# Place le lock du CI, pour éviter des démarrages intempestifs avant la fin de l'installation
 
 touch "$script_dir/work_list"	# Créer le fichier work_list

@@ -21,10 +21,10 @@ sed -i "s@-Djava.awt.headless=true@& -Djenkins.install.runSetupWizard=false@g" /
 
 # Mise en place de la connexion ssh pour jenkins cli.
 # Création de la clé ssh
-echo -e "\e[1m> Créer la clé ssh pour jenkins-cli.\e[0m" 
-ssh-keygen -t rsa -b 4096 -N "" -f "$script_dir/jenkins_key" > /dev/null 
-chown root: "$script_dir/jenkins_key" 
-chmod 600 "$script_dir/jenkins_key" 
+echo -e "\e[1m> Créer la clé ssh pour jenkins-cli.\e[0m"
+ssh-keygen -t rsa -b 4096 -N "" -f "$script_dir/jenkins_key" > /dev/null
+chown root: "$script_dir/jenkins_key"
+chmod 600 "$script_dir/jenkins_key"
 
 CI_USER=ynh_ci
 
