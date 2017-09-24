@@ -231,10 +231,28 @@ EXEC_PCHECK () {
 	then
 		# List all instance in the config file by filtering "> x.arch.weight"
 		list_instance=$(grep "^> .*$arch_pre.weight=" "$script_dir/config")
+		list_busy1_instance=""
+		use_busy=0
 
 		local ssh=0
 		while [ $ssh -eq 0 ]
 		do
+			remove_a_instance () {
+				list_instance="$(echo "$list_instance" | sed "/^> $CI_num./d")"
+				if [ -z "$list_instance" ]; then
+					echo "No ssh instances available..."
+					if [ -z "$list_busy1_instance" ]; then
+						# If there no instance previously put aside. Abort
+						break
+					else
+						# If there some busy instances, try to use them anyway
+						list_instance="$list_busy1_instance"
+						list_busy1_instance=""
+						use_busy=1
+					fi
+				fi
+			}
+
 			CI_num=$(choose_a_instance "$list_instance")
 
 			# Get all the informations for the connexion in the config file
@@ -244,18 +262,34 @@ EXEC_PCHECK () {
 			pcheckci_path=$(get_info_in_config "> $CI_num.$arch_pre.pcheckci_path=")
 			ssh_port=$(get_info_in_config "> $CI_num.$arch_pre.ssh_port=")
 
-			# Try to connect first
-			ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key "exit"
+			# Try to connect first, and get the load average for this instance
+			local load=$(ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key "uptime")
 			if [ "$?" -ne 0 ]; then
 				echo "Failed to initiate an ssh connection on $ssh_host"
-				list_instance="$(echo "$list_instance" | sed "/^> $CI_num./d")"
-				if [ -z "$list_instance" ]; then
-					echo "No ssh instances available..."
-					break
-				fi
+				remove_a_instance
 			else
 				echo "Connection to $ssh_host successful"
-				ssh=1
+				# Check the load average for this instance
+				# Reduce the load average to the plain value of the first value (1 min)
+				load=$(echo "$load" | sed 's/.*average: //' | cut -d ',' -f 1 | cut -d '.' -f 1)
+				if [ $load -ge 2 ]; then
+					echo "This instance is too busy for now, we will not bother it for now."
+					remove_a_instance
+				elif [ $load -ge 1 ]; then
+					if [ $use_busy -eq 0 ]
+					then
+						echo "This instance is a little bit busy, let's see if we can find another one."
+						# Put this instance aside, just in case we can't find another one.
+						list_busy1_instance="$list_busy1_instance\n$(echo "$list_instance" | grep "^> $CI_num.")"
+						remove_a_instance
+					else
+						echo "This instance is a little bit busy, but we still use it."
+						ssh=1
+					fi
+				else
+					# This instance is not busy, let's use it
+					ssh=1
+				fi
 			fi
 		done
 
@@ -266,7 +300,6 @@ EXEC_PCHECK () {
 
 	# Or start a test on the local instance of Package check
 	else
-
 		PCHECK_LOCAL
 	fi
 }

@@ -26,14 +26,34 @@ then
 		echo -e "\e[1m> Supprime le chroot dans la config ssh.\e[0m"
 		sudo sed -i "/.*# $user_ssh CI/d" /etc/ssh/sshd_config
 
+		echo -e "\e[1m> Démonte les interfaces loadavg et uptime de proc.\e[0m"
+		sudo umount --force $chroot_dir/proc/loadavg
+		sudo umount --force $chroot_dir/proc/uptime
+
 		echo -e "\e[1m> Supprime le dossier de $user_ssh.\e[0m"
 		if [ -n "$user_ssh" ]
 		then
 			sudo rm -r /home/$user_ssh
 		fi
+
+		echo -e "\e[1m> Nettoye le fstab.\e[0m"
+		# Supprime le commentaire en tête
+		sudo sed -i '/#CI# /d' /etc/fstab
+		# Puis les 2 lignes de mount. les / sont remplacés par \/ pour rentrer dans le sed
+		sudo sed -i "/${chroot_dir//\//\\\/}\/proc/d" /etc/fstab
+
 		exit 0
 	fi
 fi
+
+echo -e "\e[1m> Vérifie que le chroot n'existe pas déjà.\e[0m"
+if [ -e "$chroot_dir" ]
+then
+	echo -e "\e[1m> Un dossier de chroot existe déjà.\e[0m"
+	echo -e "\e[1m> Il va être supprimé préalablement.\e[0m"
+	"$script_dir/chroot_ssh.sh" --remove
+fi
+
 
 echo -e "\e[1m> Installe mlocate.\e[0m"
 sudo apt-get update
@@ -51,7 +71,7 @@ sudo chown $user_ssh: -R $chroot_dir
 sudo chown root: $chroot_dir
 
 echo -e "\e[1m> Créer les dossiers pour les exe du chroot.\e[0m"
-sudo mkdir $chroot_dir/{dev,bin,lib,lib64}
+sudo mkdir $chroot_dir/{dev,bin,lib,lib64,proc}
 
 echo -e "\e[1m> Copie des exécutables dans le chroot.\e[0m"
 
@@ -61,6 +81,16 @@ sudo chmod 666 $chroot_dir/dev/urandom
 
 echo -e "\e[1m> Copie /dev/null.\e[0m"
 sudo cp -a /dev/null $chroot_dir/dev/null
+
+echo -e "\e[1m> Monte les interfaces loadavg et uptime de proc.\e[0m"
+sudo touch $chroot_dir/proc/{loadavg,uptime}
+# Add these mount to the fstab
+echo -e "\n#CI# This 2 mount bind with /proc are for the ssh chroot of the CI" | sudo tee -a /etc/fstab
+echo "/proc/loadavg $chroot_dir/proc/loadavg none bind" | sudo tee -a /etc/fstab
+echo "/proc/uptime $chroot_dir/proc/uptime none bind" | sudo tee -a /etc/fstab
+# Then mount them
+sudo mount $chroot_dir/proc/loadavg
+sudo mount $chroot_dir/proc/uptime
 
 cp_which () {
 	sudo cp `which $1` $chroot_dir/bin/$1
@@ -108,6 +138,11 @@ locate_and_cp libpcre.so.3
 locate_and_cp libdl.so.2
 locate_and_cp libc.so.6
 locate_and_cp libpthread.so.0
+echo -e "\e[1m> uptime.\e[0m"
+cp_which uptime
+locate_and_cp libprocps.so.3
+locate_and_cp libdl.so.2
+locate_and_cp libc.so.6
 echo -e "\e[1m> sed.\e[0m"
 cp_which sed
 locate_and_cp libselinux.so.1
