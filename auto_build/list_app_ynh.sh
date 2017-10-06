@@ -258,6 +258,12 @@ CLEAR_JOB () {
 			# Get the name of this app
 			appname=$(grep "^$app$" "$parsed_current_jobs" | cut --delimiter=';' --fields=2)
 
+			if echo "$app" | grep --quiet '(ynh_core)'
+			then
+				# Official core app. To be ignored
+				continue
+			fi
+
 			echo "Remove the jobs for the application $appname" | tee -a "$message_file"
 
 			# Archive the job and its history before remove it
