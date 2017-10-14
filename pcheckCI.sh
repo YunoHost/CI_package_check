@@ -124,7 +124,8 @@ PCHECK_LOCAL () {
 	fi
 
 	# Start package check and pass to background
-	"$script_dir/package_check/package_check.sh" --bash-mode "$repo" &
+	# Use nice to reduce the priority of processes during the test.
+	nice --adjustment=10 "$script_dir/package_check/package_check.sh" --bash-mode "$repo" &
 
 
 	# Get the pid of package check
