@@ -143,6 +143,13 @@ cp_which uptime
 locate_and_cp libprocps.so.3
 locate_and_cp libdl.so.2
 locate_and_cp libc.so.6
+echo -e "\e[1m> rsync.\e[0m"
+cp_which rsync
+locate_and_cp libarmmem.so
+locate_and_cp libattr.so.1
+locate_and_cp libacl.so.1
+locate_and_cp libpopt.so.0
+locate_and_cp libc.so.6
 echo -e "\e[1m> sed.\e[0m"
 cp_which sed
 locate_and_cp libselinux.so.1

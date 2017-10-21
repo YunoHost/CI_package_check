@@ -108,7 +108,7 @@ PCHECK_SSH () {
 		"\"$pcheckci_path/analyseCI.sh\" \"$repo\" \"$test_name\""
 
 	# Copy the complete log from the distant machine
-	scp -P $ssh_port -i $ssh_key \
+	rsync --rsh="ssh -p $ssh_port -i $ssh_key" \
 		$ssh_user@$ssh_host:"$pcheckci_path/package_check/Complete.log" \
 		"$script_dir/logs/$complete_app_log"
 }
