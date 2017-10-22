@@ -28,6 +28,18 @@ timeout_expired () {
 	fi
 }
 
+# Check if the timeout has expired, but take the starttime in the lock of package check
+timeout_expired_during_test () {
+	# The lock file of package check contains the date of ending of the last test.
+	if [ -e "$lock_package_check" ]
+	then
+		starttime=$(cat "$lock_package_check" | cut -d':' -f2)
+	else
+		starttime=$(date +%s)
+	fi
+	timeout_expired
+}
+
 #=================================================
 # Check analyseCI execution
 #=================================================
@@ -131,15 +143,12 @@ PCHECK_LOCAL () {
 	# Get the pid of package check
 	package_check_pid=$!
 
-	# Start the time counter
-	set_timeout
-
 	# Start a loop while package check is working
 	while ps --pid $package_check_pid | grep --quiet $package_check_pid
 	do
 
 		# Check if the timeout is not expired
-		if ! timeout_expired
+		if ! timeout_expired_during_test
 		then
 			echo -e "\e[91m\e[1m!!! Package check was too long, its execution was aborted. !!! (PCHECK_AVORTED)\e[0m" | tee --append "$cli_log"
 

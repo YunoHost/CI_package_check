@@ -69,8 +69,8 @@ echo "$repo;$id;$test_name" >> "$script_dir/work_list"
 #=================================================
 
 set_timeout () {
-	# Get the maximum timeout value + 10 minutes
-	timeout=$(( $(grep "^timeout=" "$script_dir/config" | cut --delimiter="=" --fields=2) + 600 ))
+	# Get the maximum timeout value
+	timeout=$(grep "^timeout=" "$script_dir/config" | cut --delimiter="=" --fields=2)
 
 	# Set the starting time
 	starttime=$(date +%s)
@@ -138,8 +138,6 @@ set_timeout
 # Loop as long as the lock file doesn't contain "Finish" indication
 while [ "$(cat "$lock_pcheckCI")" != "Finish" ]
 do
-	# Check the timeout
-	timeout_expired
 
 	# Print the progression of the test every 10 seconds
 	sleep 10

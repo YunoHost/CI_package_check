@@ -7,7 +7,7 @@ type_mail=html
 CI_URL=
 
 # Durée maximale d'exécution de Package_check avant de déclarer un timeout et de stopper le processus.
-timeout=14400
+timeout=10800
 
 
 
