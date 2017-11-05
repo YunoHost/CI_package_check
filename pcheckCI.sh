@@ -87,6 +87,9 @@ check_analyseCI () {
 		echo -e "\e[91m\e[1m!!! analyseCI was cancelled, stop this test !!!\e[0m"
 		# Stop all current tests
 		"$script_dir/force_stop.sh"
+		# Terminate all child processes
+		pgrep -P $$
+		pkill -SIGTERM -P $$
 		exit 1
 
 	# If finish equal 1, analyseCI finished correctly. It's the normal way to ending this script. So remove the lock file
@@ -103,6 +106,9 @@ check_analyseCI () {
 		echo "$analyseCI_pid\nforce_stop" > "$lock_pcheckCI"
 		# Stop all current tests
 		"$script_dir/force_stop.sh"
+		# Terminate all child processes
+		pgrep -P $$
+		pkill -SIGTERM -P $$
 		exit 1
 	fi
 }
