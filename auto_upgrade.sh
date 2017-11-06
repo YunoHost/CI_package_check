@@ -19,39 +19,10 @@ lock_pcheckCI="$script_dir/CI.lock"
 
 if test -e "$lock_pcheckCI"
 then
-	remove_lock=0
-
-	if_file_overdate () {
-		local file="$1"
-		local maxage=$2
-
-		# Get the last modification time of the file
-		local last_change=$(stat --printf=%Y "$file")
-		# Determine the max age of the file
-		local maxtime=$(( $last_change + $maxage ))
-		if [ $(date +%s) -gt $maxtime ]
-		then # If $maxtime is outdated, this lock file is too old.
-			echo 1
-		else
-			echo 0
-		fi
-	}
-
 	echo "The file $(basename "$lock_pcheckCI") exist. Another test is already in progress."
-	if [ "$(cat "$lock_pcheckCI")" == "Finish" ] || [ "$(cat "$lock_pcheckCI")" == "Remove" ]
-	then
-		# If the lock file contains Finish or Remove, keep the lock only if is younger than 15 minutes
-		remove_lock=$(if_file_overdate "$lock_pcheckCI" 900)
-	fi
+	echo "Postpone this upgrade to 30min later..."
 
-	echo "Execution cancelled..."
-
-	if [ $remove_lock -eq 1 ]; then
-		echo "The lock files are too old. We're going to kill them !"
-		"$script_dir/force_stop.sh"
-	fi
-
-	# Report this script 30 minutes later
+	# Postpone this script 30 minutes later
 	echo "\"$script_dir/auto_upgrade.sh\" >> \"$script_dir/auto_upgrade.log\" 2>&1" | at now + 30 min
 
 	exit 0
