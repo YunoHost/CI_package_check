@@ -28,6 +28,25 @@ timeout_expired () {
 	fi
 }
 
+# Print date in CI.lock
+# To allow to follow the execution of package check.
+lock_update_date () {
+	local date_to_add="$1"
+	local current_content=$(cat "$lock_pcheckCI")
+	# Do not overwite the lock file if is empty (ending of analyseCI), or contains Remove or Finish.
+	if [ -n "$current_content" ] && [ "$current_content" != "Remove"] && [ "$current_content" != "Finish" ]
+	then
+		# Update the file only if there a new information to add into it.
+		if [ "$current_content" != "$id:$date_to_add" ]
+		then
+echo "update lock file" >&2
+echo "current_content=$current_content" >&2
+echo "new_content=$id:$date_to_add" >&2
+			echo -e "$id:$date_to_add" > "$lock_pcheckCI"
+		fi
+	fi
+}
+
 # Check if the timeout has expired, but take the starttime in the lock of package check
 timeout_expired_during_test () {
 	# The lock file of package check contains the date of ending of the last test.
@@ -37,6 +56,8 @@ timeout_expired_during_test () {
 	else
 		starttime=$(date +%s)
 	fi
+	# Update CI.lock with the last date of lock_package_check
+	lock_update_date "$starttime"
 	timeout_expired
 }
 
@@ -117,9 +138,28 @@ check_analyseCI () {
 # Start a test through SSH
 #=================================================
 
+get_timeout_over_ssh () {
+	# Infinite loop
+	while true
+	do
+		sleep 300
+		local ssh_date=$(ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key \
+			"cat \"$pcheckci_path/CI.lock\"")
+		# If the previous reading of CI.lock failed, break the loop.
+		if [ "$?" -ne 0 ]; then
+			# That means probably CI_package_check has finished its job and release its lock.
+			break
+		fi
+		# Update CI.lock with the last content of distant lock_pcheckCI
+		lock_update_date "$ssh_date"
+	done
+}
+
 PCHECK_SSH () {
 	echo "Start a test on $ssh_host for $architecture architecture"
 	echo "Initialize an ssh connection"
+
+	get_timeout_over_ssh
 
 	# Make a call to analyseCI.sh through ssh
 	ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key \
@@ -152,7 +192,7 @@ PCHECK_LOCAL () {
 	# Start a loop while package check is working
 	while ps --pid $package_check_pid | grep --quiet $package_check_pid
 	do
-
+		sleep 120
 		# Check if the timeout is not expired
 		if ! timeout_expired_during_test
 		then
@@ -162,7 +202,6 @@ PCHECK_LOCAL () {
 			"$script_dir/force_stop.sh" &
 			exit 1
 		fi
-		sleep 30
 	done
 
 	# Copy the complete log
