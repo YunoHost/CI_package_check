@@ -34,7 +34,7 @@ lock_update_date () {
 	local date_to_add="$1"
 	local current_content=$(cat "$lock_pcheckCI")
 	# Do not overwite the lock file if is empty (ending of analyseCI), or contains Remove or Finish.
-	if [ -n "$current_content" ] && [ "$current_content" != "Remove"] && [ "$current_content" != "Finish" ]
+	if [ -n "$current_content" ] && [ "$current_content" != "Remove" ] && [ "$current_content" != "Finish" ]
 	then
 		# Update the file only if there a new information to add into it.
 		if [ "$current_content" != "$id:$date_to_add" ]
