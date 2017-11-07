@@ -199,7 +199,8 @@ sudo yunohost app install https://github.com/YunoHost-Apps/ssh_chroot_dir_ynh -a
 
 # Créer un lien symbolique pour un accès facile à chroot_manager
 ln -sf /home/yunohost.app/ssh_chroot_directories/chroot_manager ./chroot_manager
-
+# Et à l'ajout d'utilisateur.
+ln -sf "$script_dir/Add_a_new_user.sh" ./Add_a_new_user.sh
 
 # Ajout des tâches cron
 echo -e "\e[1mAjout des tâches cron\e[0m" | tee -a "$log_build"

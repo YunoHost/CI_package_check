@@ -32,7 +32,7 @@ do
 	# Get the directory for this job in the list
 	directory="$(grep -m1 "$app" "$ssh_chroot_directory/list_job_dir" | cut -d':' -f2)"
 	# If there no file newer than 180 days (6 months), remove this app.
-	if find $directory -type f -mtime -180 > /dev/null 2>&1
+	if ! find "$directory" -type f -mtime -180 > /dev/null 2>&1
 	then
 		echo "Remove the old app $app"
 		sudo rm -r "$directory"
@@ -56,3 +56,12 @@ do
 		sed --in-place "/^$app:/d" "$ssh_chroot_directory/list_job_dir"
 	fi
 done < "$ssh_chroot_directory/job_list"
+
+#=================================================
+# UPDATE THE LIST OF CURRENT DIRECTORIES
+#=================================================
+
+sudo find "$ssh_chroot_directory" -type d -name '*_ynh' > "$ssh_chroot_directory/current"
+
+# Caculate the checksum of the list of apps
+md5sum "$ssh_chroot_directory/current" > "$ssh_chroot_directory/current.md5"
