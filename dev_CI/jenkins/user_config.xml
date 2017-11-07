@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<user>
+  <fullName>__USER__ __USER__</fullName>
+    <properties>
+      <org.jenkinsci.main.modules.cli.auth.ssh.UserPropertyImpl>
+        <authorizedKeys>__SSH_KEY__</authorizedKeys>
+      </org.jenkinsci.main.modules.cli.auth.ssh.UserPropertyImpl>
+    </properties>
+</user>
