@@ -4,6 +4,9 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 
 lock_pcheckCI="$script_dir/CI.lock"
 
+# Remove the ssh marker
+rm -f "$script_dir/ssh_running"
+
 # Get the id of the current test
 id=$(head -n1 "$lock_pcheckCI")
 

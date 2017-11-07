@@ -107,7 +107,7 @@ do
 	if test -e "$lock_pcheckCI"
 	then
 		# Check if the lock file contains the id of the current test
-		if [ "$(cat "$lock_pcheckCI")" = "$id" ]
+		if grep --quiet "$id" "$lock_pcheckCI"
 		then
 			# If the lock file contains the current id, the test has begun. Break the waiting loop
 			break

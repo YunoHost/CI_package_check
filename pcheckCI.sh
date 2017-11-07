@@ -34,7 +34,7 @@ lock_update_date () {
 	local date_to_add="$1"
 	local current_content=$(cat "$lock_pcheckCI")
 	# Do not overwite the lock file if is empty (ending of analyseCI), or contains Remove or Finish.
-	if [ -n "$current_content" ] && [ "$current_content" != "Remove"] && [ "$current_content" != "Finish" ]
+	if [ -n "$current_content" ] && [ "$current_content" != "Remove"] && [ "$current_content" != "Finish" ] && [ "$current_content" != "Force_stop" ]
 	then
 		# Update the file only if there a new information to add into it.
 		if [ "$current_content" != "$id:$date_to_add" ]
@@ -73,7 +73,7 @@ check_analyseCI () {
 	# Get the pid of analyseCI
 	local analyseCI_pid=$(cat "$analyseCI_indic" | cut --delimiter=';' --fields=1)
 	local analyseCI_id=$(cat "$analyseCI_indic" | cut --delimiter=';' --fields=2)
-	local finish=0
+	local finish=1
 
 
 	# Infinite loop
@@ -85,7 +85,7 @@ check_analyseCI () {
 		then
 			echo "analyseCI stopped."
 			# Check if the lock file contains "Remove". That means analyseCI has finish normally
-			[ "$(cat "$lock_pcheckCI")" == "Remove" ] && finish=1
+			[ "$(cat "$lock_pcheckCI")" == "Remove" ] && finish=0
 			break
 		fi
 
@@ -94,7 +94,14 @@ check_analyseCI () {
 		then
 			echo "analyseCI wait for another id."
 			finish=2
+			break
+		fi
 
+		# Check if the lock file contains "Force_stop", used to stop a test through an ssh connection.
+		if [ "$(cat "$lock_pcheckCI")" == "Force_stop" ]
+		then
+			echo "analyseCI force to stopped."
+			finish=3
 			break
 		fi
 
@@ -102,29 +109,19 @@ check_analyseCI () {
 		sleep 30
 	done
 
-	# if finish equal 0, analyseCI was aborted, in this case, kill all current process.
+	# If finish equal 0, analyseCI finished correctly. It's the normal way to ending this script. So remove the lock file
 	if [ $finish -eq 0 ]
-	then
-		echo -e "\e[91m\e[1m!!! analyseCI was cancelled, stop this test !!!\e[0m"
-		# Stop all current tests
-		"$script_dir/force_stop.sh"
-		# Terminate all child processes
-		pgrep -P $$
-		pkill -SIGTERM -P $$
-		exit 1
-
-	# If finish equal 1, analyseCI finished correctly. It's the normal way to ending this script. So remove the lock file
-	elif [ $finish -eq 1 ]
 	then
 		# Remove the lock file
 		rm -f "$lock_pcheckCI"
 		date
 		echo -e "Lock released for $test_name (id: $id)\n"
 
-	# Else, finish equal 2, analyseCI is waiting for another test (another id)
+	# finish equal 1 to 3. The current test has be killed.
 	else
-		# Replace the id for force_stop
-		echo "$analyseCI_pid\nforce_stop" > "$lock_pcheckCI"
+		if [ $finish -eq 1 ]; then
+			echo -e "\e[91m\e[1m!!! analyseCI was cancelled, stop this test !!!\e[0m"
+		fi
 		# Stop all current tests
 		"$script_dir/force_stop.sh"
 		# Terminate all child processes
@@ -145,9 +142,9 @@ get_timeout_over_ssh () {
 		sleep 300
 		local ssh_date=$(ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key \
 			"cat \"$pcheckci_path/CI.lock\"")
-		# If the previous reading of CI.lock failed, break the loop.
-		if [ "$?" -ne 0 ]; then
-			# That means probably CI_package_check has finished its job and release its lock.
+		# If the ssh mark is not here, break the loop.
+		if [ ! -e "$ssh_mark" ]; then
+			# That means this test is over.
 			break
 		fi
 		# Update CI.lock with the last content of distant lock_pcheckCI
@@ -161,9 +158,13 @@ PCHECK_SSH () {
 
 	get_timeout_over_ssh
 
+	ssh_mark="$pcheckci_path/ssh_running"
+
+	touch "$ssh_mark"
 	# Make a call to analyseCI.sh through ssh
 	ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key \
 		"\"$pcheckci_path/analyseCI.sh\" \"$repo\" \"$test_name\""
+	rm -f "$ssh_mark"
 
 	# Copy the complete log from the distant machine
 	rsync --rsh="ssh -p $ssh_port -i $ssh_key" \
@@ -413,7 +414,7 @@ then
 
 		if test -e "$lock_pcheckCI"; then
 			echo "The file $(basename "$lock_pcheckCI") exist. Another test is already in progress."
-			if [ "$(cat "$lock_pcheckCI")" == "Finish" ] || [ "$(cat "$lock_pcheckCI")" == "Remove" ]
+			if [ "$(cat "$lock_pcheckCI")" == "Finish" ] || [ "$(cat "$lock_pcheckCI")" == "Remove" ] || [ "$(cat "$lock_pcheckCI")" == "Force_stop" ]
 			then
 				# If the lock file contains Finish or Remove, keep the lock only if is younger than 15 minutes
 				remove_lock=$(if_file_overdate "$lock_pcheckCI" 900)
