@@ -4,8 +4,7 @@
 script_dir="$(dirname $(realpath $0))"
 
 ssh_user=USER_NAME
-ssh_host=51.15.205.176
-# ssh_host=ci-apps-dev.domain.tld
+ssh_host=ci-apps-dev.yunohost.org
 ssh_port=22
 ssh_key=~/.ssh/PRIVATE_KEY
 distant_dir=/data
