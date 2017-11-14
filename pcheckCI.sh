@@ -39,9 +39,6 @@ lock_update_date () {
 		# Update the file only if there a new information to add into it.
 		if [ "$current_content" != "$id:$date_to_add" ]
 		then
-echo "update lock file" >&2
-echo "current_content=$current_content" >&2
-echo "new_content=$id:$date_to_add" >&2
 			echo -e "$id:$date_to_add" > "$lock_pcheckCI"
 		fi
 	fi
@@ -141,7 +138,7 @@ get_timeout_over_ssh () {
 	do
 		sleep 300
 		local ssh_date=$(ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key \
-			"cat \"$pcheckci_path/CI.lock\"")
+			"cat \"$pcheckci_path/CI.lock\"") 2> /dev/null
 		# If the ssh mark is not here, break the loop.
 		if [ ! -e "$ssh_mark" ]; then
 			# That means this test is over.
@@ -156,11 +153,10 @@ PCHECK_SSH () {
 	echo "Start a test on $ssh_host for $architecture architecture"
 	echo "Initialize an ssh connection"
 
-	get_timeout_over_ssh
-
-	ssh_mark="$pcheckci_path/ssh_running"
-
+	ssh_mark="$script_dir/ssh_running"
 	touch "$ssh_mark"
+
+	get_timeout_over_ssh &
 	# Make a call to analyseCI.sh through ssh
 	ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key \
 		"\"$pcheckci_path/analyseCI.sh\" \"$repo\" \"$test_name\""
@@ -320,7 +316,7 @@ EXEC_PCHECK () {
 
 			# Try to connect first, and get the load average for this instance
 			local load=$(ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key "uptime")
-			if [ "$?" -ne 0 ]; then
+			if [ "$?" -ne 0 ] || [ -z "$load" ]; then
 				echo "Failed to initiate an ssh connection on $ssh_host"
 				remove_a_instance
 			else
