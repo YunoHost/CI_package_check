@@ -1,0 +1,6 @@
+
+# Vérifie toutes les 5 minutes si une nouvelle app a été ajoutée.
+*/5 * * * * root "__PATH__/ci_scan_jobs.sh" >> "__PATH__/add_apps.log" 2>&1
+
+# Supprime les apps retirées ou trop anciennes chaque nuit.
+5 4 * * * root "__PATH__/ci_clean_jobs.sh" >> "__PATH__/remove_apps.log" 2>&1

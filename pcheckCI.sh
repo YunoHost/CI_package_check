@@ -510,7 +510,7 @@ then
 	#=================================================
 
 	# From the repositery, remove http(s):// and replace all / by _ to build the log name
-	app_log=${log_dir}$(echo "${repo#http*://}" | sed 's@/@_@g')$architecture.log
+	app_log=${log_dir}$(echo "${repo#http*://}" | sed 's@[/ ]@_@g')$architecture.log
 	# The complete log is the same of the previous log, with complete at the end.
 	complete_app_log=${log_dir}$(basename --suffix=.log "$app_log")_complete.log
 
