@@ -22,7 +22,7 @@ ssh_chroot_directory="/home/yunohost.app/ssh_chroot_directories"
 # SCAN THE CURRENTS APP DIRECTORIES
 #=================================================
 
-sudo find "$ssh_chroot_directory" -type d -name '*_ynh' > "$ssh_chroot_directory/current"
+sudo find "$ssh_chroot_directory" -type d -name '*_ynh*' > "$ssh_chroot_directory/current"
 
 # Continue only if there a modification into the list of apps.
 if ! md5sum --check --status "$ssh_chroot_directory/current.md5"

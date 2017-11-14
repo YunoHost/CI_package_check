@@ -1,0 +1,6 @@
+
+# Vérifie toutes les heures si de nouvelles branches sont présente. Et update les branches.
+0 * * * * root "__PATH__/list_official_branches.sh" >> "__PATH__/official_branches.log" 2>&1
+
+# Met à jour la liste d'application cahque nuit.
+10 1 * * * root "__PATH__/list_app_ynh.sh" >> "__PATH__/official_branches.log" 2>&1

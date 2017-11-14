@@ -153,12 +153,16 @@ touch "$script_dir/../CI.lock"
 touch "$script_dir/../package_check/pcheck.lock"
 
 # Modifie la config nginx pour ajouter l'accès aux logs
-echo | sudo tee -a "/etc/nginx/conf.d/$domain.d/$ci_path.conf" <<EOF | tee -a "$log_build"
+sudo mv "/etc/nginx/conf.d/$domain.d/$ci_path.conf" "/etc/nginx/conf.d/$domain.d/$ci_path.conf_copy"
+echo | sudo tee "/etc/nginx/conf.d/$domain.d/$ci_path.conf" <<EOF | tee -a "$log_build"
 location /$ci_path/logs {
    alias $(dirname "$script_dir")/logs/;
    autoindex on;
 }
+
 EOF
+sudo cat "/etc/nginx/conf.d/$domain.d/$ci_path.conf_copy" >> "/etc/nginx/conf.d/$domain.d/$ci_path.conf"
+sudo rm "/etc/nginx/conf.d/$domain.d/$ci_path.conf_copy"
 
 # Créer le fichier de configuration
 echo | sudo tee "$script_dir/config.conf" <<EOF | tee -a "$log_build"
@@ -167,7 +171,16 @@ CI_PATH=$ci_path
 
 # Domaine utilisé
 DOMAIN=$domain
-}
+EOF
+
+# Et un petit fichier de configuration pour le CI officiel
+# Permet de déclencher les logs via nginx
+echo | sudo tee "$script_dir/auto.conf" <<EOF | tee -a "$LOG_BUILD_AUTO_CI"
+# Path du logiciel de CI
+CI_PATH=$ci_path
+
+# Domaine utilisé
+DOMAIN=$domain
 EOF
 
 # Supprime les locks
