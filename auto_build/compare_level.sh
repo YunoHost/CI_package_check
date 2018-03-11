@@ -145,7 +145,7 @@ public_list_file="$script_dir/../logs/list_level_$type"
 
 # Remove the previous entry for this app
 sed --in-place "/^$test_name;/d" "$public_list_file"
-sed --in-place "/^\"$test_name\":/d" "$public_list_file.json"
+sed --in-place "/\"$test_name\":/d" "$public_list_file.json"
 
 # Then add this app to the list
 echo "$test_name;level=$app_level;success=$success;detailled_success=${tests_results[@]};date=$(date) ($(date +%s))" >> "$public_list_file"
