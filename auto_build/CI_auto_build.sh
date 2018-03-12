@@ -20,7 +20,7 @@ yuno_pwd=$2
 ci_type=$3
 
 echo_bold () {
-	echo_bold "$1\e[0m"
+	echo -e "\e[1m$1\e[0m"	
 }
 
 # SPECIFIC PART FOR JENKINS (START)
