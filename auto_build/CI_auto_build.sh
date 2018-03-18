@@ -7,6 +7,7 @@
 script_dir="$(dirname $(realpath $0))"
 
 log_build_auto_ci="$script_dir/Log_build_auto_ci.log"
+tee_to_log="tee -a \"$log_build_auto_ci\" 2>&1"
 default_ci_user=ynhci
 
 # This script can get as argument the domain for jenkins, the admin password of YunoHost and the type of installation requested.
@@ -20,7 +21,7 @@ yuno_pwd=$2
 ci_type=$3
 
 echo_bold () {
-	echo -e "\e[1m$1\e[0m" | tee -a "$log_build_auto_ci"
+	echo -e "\e[1m$1\e[0m" | $tee_to_log
 }
 
 # SPECIFIC PART FOR JENKINS (START)
@@ -31,7 +32,7 @@ SETUP_JENKINS () {
 	ci_path=jenkins
 
 	echo_bold "> Installation of jenkins..."
-	sudo yunohost app install https://github.com/YunoHost-Apps/jenkins_ynh -a "domain=$domain&path=/$ci_path&is_public=1" | tee -a "$log_build_auto_ci" 2>&1
+	sudo yunohost app install https://github.com/YunoHost-Apps/jenkins_ynh -a "domain=$domain&path=/$ci_path&is_public=1" | $tee_to_log
 
 	# Keep 1 simultaneous test only
 	sudo sed -i "s/<numExecutors>.*</<numExecutors>1</" /var/lib/jenkins/config.xml
@@ -53,9 +54,9 @@ SETUP_JENKINS () {
 	# Set up an ssh connection for jenkins cli.
 	# Create a new ssh key.
 	echo_bold "> Create a ssh key for jenkins-cli."
-	ssh-keygen -t rsa -b 4096 -N "" -f "$script_dir/jenkins/jenkins_key" > /dev/null | tee -a "$log_build_auto_ci" 2>&1
-	sudo chown root: "$script_dir/jenkins/jenkins_key" | tee -a "$log_build_auto_ci" 2>&1
-	sudo chmod 600 "$script_dir/jenkins/jenkins_key" | tee -a "$log_build_auto_ci" 2>&1
+	ssh-keygen -t rsa -b 4096 -N "" -f "$script_dir/jenkins/jenkins_key" > /dev/null | $tee_to_log
+	sudo chown root: "$script_dir/jenkins/jenkins_key" | $tee_to_log
+	sudo chmod 600 "$script_dir/jenkins/jenkins_key" | $tee_to_log
 
 	# Configure jenkins to use this ssh key.
 	echo_bold "> Create a basic configuration for jenkins' user."
@@ -64,22 +65,22 @@ SETUP_JENKINS () {
 	# Copy the model of config.
 	sudo cp "$script_dir/jenkins/user_config.xml" "/var/lib/jenkins/users/$ci_user/config.xml"
 	# Add a name for this user.
-	sudo sed -i "s/__USER__/$ci_user/g" "/var/lib/jenkins/users/$ci_user/config.xml" | tee -a "$log_build_auto_ci" 2>&1
+	sudo sed -i "s/__USER__/$ci_user/g" "/var/lib/jenkins/users/$ci_user/config.xml" | $tee_to_log
 	# Add the ssh key
-	sudo sed -i "s|__SSH_KEY__|$(cat "$script_dir/jenkins/jenkins_key.pub")|"  "/var/lib/jenkins/users/$ci_user/config.xml" | tee -a "$log_build_auto_ci" 2>&1
+	sudo sed -i "s|__SSH_KEY__|$(cat "$script_dir/jenkins/jenkins_key.pub")|"  "/var/lib/jenkins/users/$ci_user/config.xml" | $tee_to_log
 	sudo chown jenkins: -R "/var/lib/jenkins/users"
 	# Configure ssh port in jenkins config
-	echo | sudo tee "/var/lib/jenkins/org.jenkinsci.main.modules.sshd.SSHD.xml" <<EOF | tee -a "$log_build_auto_ci" 2>&1
+	echo | sudo tee "/var/lib/jenkins/org.jenkinsci.main.modules.sshd.SSHD.xml" <<EOF | $tee_to_log
 <?xml version='1.0' encoding='UTF-8'?>
 <org.jenkinsci.main.modules.sshd.SSHD>
   <port>0</port>
 </org.jenkinsci.main.modules.sshd.SSHD>
 EOF
-	sudo chown jenkins: "/var/lib/jenkins/org.jenkinsci.main.modules.sshd.SSHD.xml" | tee -a "$log_build_auto_ci" 2>&1
+	sudo chown jenkins: "/var/lib/jenkins/org.jenkinsci.main.modules.sshd.SSHD.xml" | $tee_to_log
 
 	# Reboot jenkins to consider the new key
 	echo_bold "> Reboot jenkins to handle the new ssh key..."
-	sudo systemctl restart jenkins | tee -a "$log_build_auto_ci" 2>&1
+	sudo systemctl restart jenkins | $tee_to_log
 
 	tempfile="$(mktemp)"
 	tail -f -n1 /var/log/jenkins/jenkins.log > "$tempfile" &	# Follow the boot of jenkins in its log
@@ -88,7 +89,7 @@ EOF
 	for i in `seq 1 $timeout`
 	do	# Because it can be really long on a ARM architecture, wait until $timeout or the boot of jenkins.
 		if grep -q "Jenkins is fully up and running" "$tempfile"; then
-			echo "Jenkins has started correctly." | tee -a "$log_build_auto_ci" 2>&1
+			echo "Jenkins has started correctly." | $tee_to_log
 			break
 		fi
 		sleep 1
@@ -96,7 +97,7 @@ EOF
 	kill -s 15 $pid_tail > /dev/null	# Stop tail
 	sudo rm "$tempfile"
 	if [ "$i" -ge $timeout ]; then
-		echo "Jenkins hasn't started before the timeout (${timeout}s)." | tee -a "$log_build_auto_ci" 2>&1
+		echo "Jenkins hasn't started before the timeout (${timeout}s)." | $tee_to_log
 	fi
 
 
@@ -140,10 +141,10 @@ if [ ! -e /usr/bin/yunohost ]
 then
 	echo_bold "> YunoHost isn't yet installed."
 	echo_bold "Installation of YunoHost..."
-	sudo apt-get update | tee "$log_build_auto_ci" 2>&1
-	sudo apt-get install -y sudo git | tee "$log_build_auto_ci" 2>&1
+	sudo apt-get update | $tee_to_log
+	sudo apt-get install -y sudo git | $tee_to_log
 	git clone https://github.com/YunoHost/install_script /tmp/install_script
-	cd /tmp/install_script; sudo ./install_yunohost -a | tee "$log_build_auto_ci" 2>&1
+	cd /tmp/install_script; sudo ./install_yunohost -a | $tee_to_log
 
 	echo_bold "> YunoHost post install"
 	if [ -n "$domain" ]; then
@@ -195,7 +196,7 @@ SETUP_CI_APP
 
 # Installation of Package_check
 echo_bold "Installation of Package check with its CI script"
-"$script_dir/../build_CI.sh" | tee -a "$log_build_auto_ci" 2>&1
+"$script_dir/../build_CI.sh" | $tee_to_log
 # TODO, build_CI need to be able to not install Package_check in case of ARM CI only.
 
 # Put lock files to prevent any usage of package check during the installation.
@@ -211,6 +212,53 @@ then
 	lxc_name=$(cat "$script_dir/../package_check/config" | grep lxc_name= | cut -d '=' -f2)
 	sudo mv /var/lib/lxcsnaps/$lxc_name /var/lib/lxcsnaps/pcheck_stable
 	sudo ln -s /var/lib/lxcsnaps/pcheck_stable /var/lib/lxcsnaps/$lxc_name
+
+	# Create testing and unstable containers
+	# We will not create any new containers, but only duplicate the main snapshot, then modify it to create a testing and a unstable snapshot.
+	# Then, to work, the CI will only change the snapshot pointed by the symbolic link.
+	if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Testing_Unstable" ]
+	then
+		for change_version in testing unstable
+		do
+			# Add a new directory for the snapshot
+			sudo mkdir /var/lib/lxcsnaps/pcheck_$change_version
+
+			echo_bold "> Copy the stable snapshot to create a snapshot for $change_version"
+			sudo cp -a /var/lib/lxcsnaps/pcheck_stable/snap0 /var/lib/lxcsnaps/pcheck_$change_version/snap0
+
+			echo_bold "> Configure repositories for $change_version"
+			if [ $change_version == testing ]; then
+				source="testing"
+			else
+				source="testing unstable"
+			fi
+			sudo echo "deb http://repo.yunohost.org/debian/ jessie stable $source" | sudo tee /var/lib/lxcsnaps/pcheck_$change_version/snap0/rootfs/etc/apt/sources.list.d/yunohost.list >> "$log_build_auto_ci" 2>&1
+
+			# Remove lock files to allow upgrade
+			sudo rm -f "$script_dir/../package_check/pcheck.lock" "$script_dir/../CI.lock"
+
+			echo_bold "> Upgrade the container $change_version"
+			sudo "$script_dir/auto_upgrade_container.sh" $change_version | $tee_to_log
+
+			# Put back the lock files
+			touch "$script_dir/../CI.lock" "$script_dir/../package_check/pcheck.lock"
+
+			echo_bold "> Add an upgrade task in the cron for $change_version"
+			if [ "$change_version" == testing ]; then
+				cron_hour=4
+			else
+				cron_hour=5
+			fi
+			echo | sudo tee -a "/etc/cron.d/CI_package_check" <<EOF | $tee_to_log
+
+## $change_version
+# Vérifie les mises à jour du conteneur.
+30 $cron_hour * * * root "$script_dir/auto_upgrade_container.sh" $change_version
+EOF
+			# Create a directory for the logs
+			mkdir "$script_dir/../logs/logs_$change_version"
+		done
+	fi
 fi
 
 
@@ -218,7 +266,7 @@ fi
 if [ "$ci_type" != "ARM" ]
 then
 	echo_bold "Change the cron for upgrade"
-	sudo sed -i "s@package_check/sub_scripts/auto_upgrade.sh.*@auto_build/auto_upgrade_container.sh\" stable@g" "/etc/cron.d/CI_package_check" | tee -a "$log_build_auto_ci" 2>&1
+	sudo sed -i "s@package_check/sub_scripts/auto_upgrade.sh.*@auto_build/auto_upgrade_container.sh\" stable@g" "/etc/cron.d/CI_package_check" | $tee_to_log
 fi
 
 
@@ -229,16 +277,18 @@ cat "$script_dir/CI_package_check_cron" | sudo tee -a "/etc/cron.d/CI_package_ch
 # Then set the path
 sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check"
 
-# Modifie la config nginx pour ajouter l'accès aux logs
-echo | sudo tee -a "/etc/nginx/conf.d/$domain.d/$CI_PATH.conf" <<EOF | tee -a "$log_build_auto_ci" 2>&1
+
+# Add an access to logs in the nginx config
+echo | sudo tee -a "/etc/nginx/conf.d/$domain.d/$CI_PATH.conf" <<EOF | $tee_to_log
 location /$CI_PATH/logs {
    alias $(dirname "$script_dir")/logs/;
    autoindex on;
 }
 EOF
 
-# Créer le fichier de configuration
-echo | sudo tee "$script_dir/auto.conf" <<EOF | tee -a "$log_build_auto_ci" 2>&1
+
+# Build a config file
+echo | sudo tee "$script_dir/auto.conf" <<EOF | $tee_to_log
 # Mail pour le rapport hebdommadaire
 MAIL_DEST=root
 
@@ -259,237 +309,36 @@ CI_PATH=$CI_PATH
 domain=$domain
 }
 EOF
-echo_bold "Le fichier de configuration a été créée dans $script_dir/auto.conf"
+echo_bold "The config file has been built in $script_dir/auto.conf"
 
-echo_bold "Mise en place du bot XMPP"
-sudo apt-get install python-xmpp | tee -a "$log_build_auto_ci" 2>&1
-git clone https://github.com/YunoHost/weblate2xmpp "$script_dir/xmpp_bot" | tee -a "$log_build_auto_ci" 2>&1
-sudo touch "$script_dir/xmpp_bot/password" | tee -a "$log_build_auto_ci" 2>&1
-sudo chmod 600 "$script_dir/xmpp_bot/password" | tee -a "$log_build_auto_ci" 2>&1
+
+echo_bold "Set the XMPP bot"
+sudo apt-get install python-xmpp | $tee_to_log
+git clone https://github.com/YunoHost/weblate2xmpp "$script_dir/xmpp_bot" | $tee_to_log
+sudo touch "$script_dir/xmpp_bot/password" | $tee_to_log
+sudo chmod 600 "$script_dir/xmpp_bot/password" | $tee_to_log
 echo "python \"$script_dir/xmpp_bot/to_room.py\" \$(sudo cat \"$script_dir/xmpp_bot/password\") \"\$@\" apps" \
-> "$script_dir/xmpp_bot/xmpp_post.sh" | tee -a "$log_build_auto_ci" 2>&1
-sudo chmod +x "$script_dir/xmpp_bot/xmpp_post.sh" | tee -a "$log_build_auto_ci" 2>&1
-
-## ---
-# Création des autres instances
-
- ### Solution en multiples conteneur abandonnée...
-# PLAGE_IP=$(cat "$script_dir/../package_check/sub_scripts/lxc_build.sh" | grep PLAGE_IP= | cut -d '"' -f2)
-# LXC_BRIDGE=$(cat "$script_dir/../package_check/sub_scripts/lxc_build.sh" | grep LXC_BRIDGE= | cut -d '=' -f2)
-
-for change_version in testing unstable
-do
- ### Solution en multiples conteneur abandonnée...
-# 	change_lxc_name=pcheck_$change_version
-# 	change_LXC_BRIDGE=pcheck-$change_version
-# 	if [ $change_version == testing ]
-# 	then
-# 		change_PLAGE_IP="10.1.5"
-# 		echo_bold "Clone le conteneur testing pour la version unstable"
-# 		sudo lxc-copy --name=pcheck_testing --newname=pcheck_unstable >> "$log_build_auto_ci" 2>&1
-# 	else
-# 		change_PLAGE_IP="10.1.6"
-# 	fi
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "> Modification de l'ip de la version $change_version"
-# 	sudo sed -i "s@$PLAGE_IP@$change_PLAGE_IP@" /var/lib/lxc/$change_lxc_name/rootfs/etc/network/interfaces >> "$log_build_auto_ci" 2>&1
-# 	echo_bold "> Le nom du veth"
-# 	sudo sed -i "s@^lxc.network.veth.pair = ${lxc_name}@lxc.network.veth.pair = $change_lxc_name@" /var/lib/lxc/$change_lxc_name/config >> "$log_build_auto_ci" 2>&1
-# 	echo_bold "> Et le nom du bridge"
-# 	sudo sed -i "s@^lxc.network.link = ${LXC_BRIDGE}@lxc.network.link = $change_LXC_BRIDGE@" /var/lib/lxc/$change_lxc_name/config >> "$log_build_auto_ci" 2>&1
-# 	echo_bold "> Et enfin renseigne /etc/hosts sur $change_version"
-# 	sudo sed -i "s@^127.0.0.1 ${lxc_name}@127.0.0.1 $change_lxc_name@" /var/lib/lxc/$change_lxc_name/rootfs/etc/hosts >> "$log_build_auto_ci" 2>&1
-
-	# Créer le dossier pour le snapshot
-	sudo mkdir /var/lib/lxcsnaps/pcheck_$change_version
-	echo_bold "> Duplique le snapshot stable vers $change_version"
-	sudo cp -a /var/lib/lxcsnaps/pcheck_stable/snap0 /var/lib/lxcsnaps/pcheck_$change_version/snap0
-
-	echo_bold "> Configure les dépôts du conteneur sur $change_version"
-	if [ $change_version == testing ]; then
-		source="testing"
-	else
-		source="testing unstable"
-	fi
-	sudo echo "deb http://repo.yunohost.org/debian/ jessie stable $source" | sudo tee  /var/lib/lxcsnaps/pcheck_$change_version/snap0/rootfs/etc/apt/sources.list.d/yunohost.list >> "$log_build_auto_ci" 2>&1
-
-	# Supprime les locks pour autoriser l'upgrade
-	sudo rm -f "$script_dir/../package_check/pcheck.lock" "$script_dir/../CI.lock"
-
-	echo_bold "> Effectue la mise à jour du conteneur sur $change_version"
-	sudo "$script_dir/auto_upgrade_container.sh" $change_version | tee -a "$log_build_auto_ci" 2>&1
-
-	# Remet les locks après l'upgrade
-	touch "$script_dir/../CI.lock" "$script_dir/../package_check/pcheck.lock"
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "> Créer une copie des scripts CI_package_check pour $change_version"
-# 	parent_dir="$(echo "$(dirname "$(dirname "$script_dir")")")"
-# 	new_CI_dir="$parent_dir/CI_package_check_$change_version"
-# 	sudo cp -a "$parent_dir/CI_package_check" "$new_CI_dir"
-# 	echo_bold "> Modifie les infos du conteneur dans le script build"
- ### Solution en multiples conteneur abandonnée...
-# 	sudo sed -i "s@^PLAGE_IP=.*@PLAGE_IP=\"$change_PLAGE_IP\"@" "$new_CI_dir/package_check/sub_scripts/lxc_build.sh" >> "$log_build_auto_ci" 2>&1
-# 	sudo sed -i "s@^lxc_name=.*@lxc_name=$change_lxc_name@" "$new_CI_dir/package_check/sub_scripts/lxc_build.sh" >> "$log_build_auto_ci" 2>&1
-# 	sudo sed -i "s@^LXC_BRIDGE=.*@LXC_BRIDGE=$change_LXC_BRIDGE@" "$new_CI_dir/package_check/sub_scripts/lxc_build.sh" >> "$log_build_auto_ci" 2>&1
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "> Supprime les locks sur $change_version"
-# 	sudo rm -f "$new_CI_dir/package_check/pcheck.lock"
-# 	sudo rm -f "$new_CI_dir/CI.lock"
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "Créer un lien symbolique pour le bot XMPP sur $change_version"
-# 	sudo rm -r "$new_CI_dir/auto_build/xmpp_bot" | tee -a "$log_build_auto_ci" 2>&1
-# 	sudo ln -s "$script_dir/xmpp_bot" "$new_CI_dir/auto_build/xmpp_bot_diff" | tee -a "$log_build_auto_ci" 2>&1
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "> Ajoute un brige réseau pour la machine virtualisée"
-# 	echo | sudo tee /etc/network/interfaces.d/$change_LXC_BRIDGE <<EOF >> "$log_build_auto_ci" 2>&1
-# auto $change_LXC_BRIDGE
-# iface $change_LXC_BRIDGE inet static
-#         address $change_PLAGE_IP.1/24
-#         bridge_ports none
-#         bridge_fd 0
-#         bridge_maxwait 0
-# EOF
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "> Ajoute la config ssh pour $change_version"
-# 	echo | sudo tee -a /root/.ssh/config <<EOF >> "$log_build_auto_ci" 2>&1
-# # ssh $change_lxc_name
-# Host $change_lxc_name
-# Hostname $change_PLAGE_IP.2
-# User pchecker
-# IdentityFile /root/.ssh/$lxc_name
-# EOF
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "> Création d'un snapshot pour le conteneur $change_version"
-# 	sudo lxc-snapshot -n $change_lxc_name >> "$log_build_auto_ci" 2>&1
-
-	echo_bold "> Ajout des tâches cron pour $change_version"
-	if [ "$change_version" == testing ]; then
-		cron_hour=4	# Décale les horaires de maj de testing et unstable
-	else
-		cron_hour=5	# Pour que testing démarre ses tests avant unstable
-	fi
-	echo | sudo tee -a "/etc/cron.d/CI_package_check" <<EOF | tee -a "$log_build_auto_ci" 2>&1
-
-## $change_version
-# Vérifie les mises à jour du conteneur, à 4h30 chaque nuit.
-30 $cron_hour * * * root "$script_dir/auto_upgrade_container.sh" $change_version
-EOF
- ### Solution en multiples conteneur abandonnée...
-# ## $change_version
-# # Vérifie toutes les 5 minutes si un test doit être lancé avec Package_check
-# */5 * * * * root "$new_CI_dir/pcheckCI.sh" >> "$new_CI_dir/pcheckCI.log" 2>&1
-# # Vérifie les mises à jour du conteneur, à 4h30 chaque nuit.
-# 30 $cron_hour * * * root "$new_CI_dir/package_check/sub_scripts/auto_upgrade.sh" >> "$new_CI_dir/package_check/upgrade.log" 2>&1
-# # Vérifie chaque nuit les listes d'applications de Yunohost pour mettre à jour les jobs. À 4h10, après la maj du conteneur.
-# 50 $cron_hour * * * root "$new_CI_dir/auto_build/list_app_ynh.sh" >> "$new_CI_dir/auto_build/update_lists.log" 2>&1
-# EOF
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "> Modifie le trigger pour $change_version"
-# 	sudo cp -a "$new_CI_dir/auto_build/jenkins/jenkins_job_nostable.xml" "$new_CI_dir/auto_build/jenkins/jenkins_job.xml"
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "> Créer un lien symbolique pour les logs de $change_version"
-# 	# Les logs seront accessible depuis le dossier principal de logs.
-# 	sudo ln -fs "$new_CI_dir/logs" "$parent_dir/CI_package_check/logs/logs_$change_version" | tee -a "$log_build_auto_ci" 2>&1
-	mkdir "$script_dir/../logs/logs_$change_version"	# Créer le dossier des logs
+	> "$script_dir/xmpp_bot/xmpp_post.sh" | $tee_to_log
+sudo chmod +x "$script_dir/xmpp_bot/xmpp_post.sh" | $tee_to_log
 
 
- ### Solution en multiples conteneur abandonnée...
-# 	# Créer un lien symbolique pour la liste des niveaux de stable. (Même si fichier n'existe pas encore)
-# 	sudo ln -fs "$parent_dir/CI_package_check/auto_build/list_level_stable" "$new_CI_dir/auto_build/list_level_stable" | tee -a "$log_build_auto_ci" 2>&1
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "> Démarrage du bridge pour $change_version"
-# 	sudo ifup $change_LXC_BRIDGE --interfaces=/etc/network/interfaces.d/$change_LXC_BRIDGE | tee -a "$log_build_auto_ci" 2>&1
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "> Démarrage de la machine $change_version"
-# 	sudo lxc-start -n $change_lxc_name -d --logfile "$new_CI_dir/package_check/lxc_boot.log" >> "$log_build_auto_ci" 2>&1
-# 	sleep 3
-# 	sudo lxc-ls -f >> "$log_build_auto_ci" 2>&1
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "> Enregistre l'empreinte ECDSA pour la clé SSH"
-# 	sudo ssh-keyscan -H $change_PLAGE_IP.2 | sudo tee -a /root/.ssh/known_hosts >> "$log_build_auto_ci" 2>&1
-# 	ssh -t $change_lxc_name "exit 0"	# Initie une premier connexion SSH pour valider la clé.
-# 	if [ "$?" -ne 0 ]; then	# Si l'utilisateur tarde trop, la connexion sera refusée...
-# 		ssh -t $change_lxc_name "exit 0"
-# 	fi
-	# Pour une raison qui m'échappe encore, le ssh-keyscan ne semble pas passer. Il faudra donc se connecter manuellement pour valider les 2 nouveaux hosts.
-
-# TESTING
-# sudo ifup pcheck-testing --interfaces=/etc/network/interfaces.d/pcheck-testing
-# sudo iptables -A FORWARD -i pcheck-testing -o eth0 -j ACCEPT
-# sudo iptables -A FORWARD -i eth0 -o pcheck-testing -j ACCEPT
-# sudo iptables -t nat -A POSTROUTING -s 10.1.5.0/24 -j MASQUERADE
-
-# sudo lxc-start -n pcheck_testing -d
-# sudo lxc-ls -f
-
-# sudo ssh -t pcheck_testing "sudo ping -q -c 2 security.debian.org"
-
-# sudo lxc-stop -n pcheck_testing
-# sudo rsync -aEAX --delete -i /var/lib/lxcsnaps/pcheck_testing/snap0/rootfs/ /var/lib/lxc/pcheck_testing/rootfs/
-
-# sudo iptables -D FORWARD -i pcheck-testing -o eth0 -j ACCEPT
-# sudo iptables -D FORWARD -i eth0 -o pcheck-testing -j ACCEPT
-# sudo iptables -t nat -D POSTROUTING -s 10.1.5.0/24 -j MASQUERADE
-# sudo ifdown --force pcheck-testing
-
-# UNSTABLE
-# sudo ifup pcheck-unstable --interfaces=/etc/network/interfaces.d/pcheck-unstable
-# sudo iptables -A FORWARD -i pcheck-unstable -o eth0 -j ACCEPT
-# sudo iptables -A FORWARD -i eth0 -o pcheck-unstable -j ACCEPT
-# sudo iptables -t nat -A POSTROUTING -s 10.1.6.0/24 -j MASQUERADE
-
-# sudo lxc-start -n pcheck_unstable -d
-# sudo lxc-ls -f
-
-# sudo ssh -t pcheck_unstable "sudo ping -q -c 2 security.debian.org"
-
-# sudo lxc-stop -n pcheck_unstable
-# sudo rsync -aEAX --delete -i /var/lib/lxcsnaps/pcheck_unstable/snap0/rootfs/ /var/lib/lxc/pcheck_unstable/rootfs/
-
-# sudo iptables -D FORWARD -i pcheck-unstable -o eth0 -j ACCEPT
-# sudo iptables -D FORWARD -i eth0 -o pcheck-unstable -j ACCEPT
-# sudo iptables -t nat -D POSTROUTING -s 10.1.6.0/24 -j MASQUERADE
-# sudo ifdown --force pcheck-unstable
-
- ### Solution en multiples conteneur abandonnée...
-# 	echo_bold "> Arrêt de la machine $change_version"
-# 	sudo lxc-stop -n $change_lxc_name >> "$log_build_auto_ci" 2>&1
-
-# 	echo_bold "> Arrêt du bridge pour $change_version"
-# 	sudo ifdown --force $change_LXC_BRIDGE | tee -a "$log_build_auto_ci" 2>&1
-
-done
-
-# Supprime les locks
+# Remove lock files
 sudo rm -f "$script_dir/../package_check/pcheck.lock"
 sudo rm -f "$script_dir/../CI.lock"
 
- ### Solution en multiples conteneur abandonnée...
-# echo_bold "> Les conteneurs testing et unstable seront mis à jour cette nuit."
 
-# Liste les apps Yunohost et créer les jobs à l'aide du script list_app_ynh.sh
-echo_bold "Création des jobs"
+# Create jobs with list_app_ynh.sh
+echo_bold "Create jobs"
 sudo "$script_dir/list_app_ynh.sh"
+# TODO Check usage for stable only and testing/unstable only.
 
-echo_bold "Vérification des droits d'accès"
+echo_bold "Check the access rights"
 if sudo su -l $CI -c "ls \"$script_dir\"" > /dev/null 2<&1
 then
-	echo -e "\e[92mLes droits d'accès sont suffisant." | tee -a "$log_build_auto_ci" 2>&1
+	echo -e "\e[92mAccess rights are good." | $tee_to_log
 else
-	echo -e "\e[91m$CI n'a pas les droits suffisants pour accéder aux scripts !" | tee -a "$log_build_auto_ci" 2>&1
+	echo -e "\e[91m$CI don't have access to the scripts !" | $tee_to_log
 fi
 
 echo ""
-echo -e "\e[92mLe fichier $script_dir/xmpp_bot/password doit être renseigné avec le mot de passe du bot xmpp.\e[0m" | tee -a "$log_build_auto_ci" 2>&1
+echo -e "\e[92mThe file $script_dir/xmpp_bot/password needs to be provided with the xmpp bot password.\e[0m" | $tee_to_log
