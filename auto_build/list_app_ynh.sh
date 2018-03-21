@@ -7,7 +7,7 @@
 # Grab the script directory
 #=================================================
 
-if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
+script_dir="$(dirname $(realpath $0))"
 
 #=================================================
 #=================================================
@@ -32,8 +32,12 @@ JENKINS_BUILD_JOB () {
 	# If it's not the default architecture
 	if [ "$architecture" != "default" ]
 	then
-		# Use the arch job squeleton
-		cp "${base_jenkins_job}_arch.xml" "${base_jenkins_job}_load.xml"
+		# If it's a ARM only CI, build a classic job. Not dependant of a stable job
+		if [ "$ci_type" != "ARM" ]
+		then
+			# Use the arch job squeleton
+			cp "${base_jenkins_job}_arch.xml" "${base_jenkins_job}_load.xml"
+		fi
 
 	# If it's not the stable type of test
 	elif [ "$type_test" != "stable" ]
@@ -117,9 +121,11 @@ BUILD_JOB () {
 	# Get the architecture for this job
 	get_arch
 
-	if [ "$architecture" == "default" ]
+	if [ "$architecture" == "default" ] && [ "$ci_type" != "Mixed_content" ]
 	then
 		type_of_test="stable testing unstable"
+	elif [ "$architecture" == "default" ] && [ "$ci_type" != "Testing_Unstable" ]
+		type_of_test="testing unstable"
 	else
 		type_of_test="stable"
 	fi
@@ -143,9 +149,11 @@ REMOVE_JOB () {
 	# Get the architecture for this job
 	get_arch
 
-	if [ "$architecture" == "default" ]
+	if [ "$architecture" == "default" ] && [ "$ci_type" != "Mixed_content" ]
 	then
 		type_of_test="stable testing unstable"
+	elif [ "$architecture" == "default" ] && [ "$ci_type" != "Testing_Unstable" ]
+		type_of_test="testing unstable"
 	else
 		type_of_test="stable"
 	fi
@@ -308,6 +316,8 @@ parsed_current_jobs="$script_dir/parsed_current_jobs"
 message_file="$script_dir/job_send"
 # Purge the message file
 > "$message_file"
+# Type of CI
+ci_type="$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)"
 
 # Work on the official list, then community list
 for list in official community

@@ -4,7 +4,7 @@
 # Grab the script directory
 #=================================================
 
-if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
+script_dir="$(dirname $(realpath $0))"
 
 #=================================================
 # Get variables
@@ -63,6 +63,12 @@ then
 	# Else, add this app to the list
 	else
 		echo "$test_name:$app_level" >> "$list_file"
+	fi
+
+	# Copy the list stable to the public directory 'logs'
+	if [ "$type" = "stable" ]
+	then
+		cp "$list_file" "$script_dir/../logs/list_level_stable_raw"
 	fi
 fi
 
@@ -158,6 +164,7 @@ done
 # Remove the last comma
 tests_results_json=${tests_results_json%,}
 echo "{ \"$test_name\": { \"level\": $app_level, \"success\": $success, \"detailled_success\": [$tests_results_json ], \"date\": \"$(date)\", \"timestamp\": $(date +%s) } }" >> "$public_list_file.json"
+
 #=================================================
 # For testing and unstable, compare with stable
 #=================================================
@@ -172,6 +179,13 @@ then
 	then
 		# Finish the script, the next execution will continue.
 		exit 0
+	fi
+
+	# If it isn't a Mixed_content CI (stable, tesing and unstable on the same server)
+	if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" != "Mixed_content" ]
+	then
+		# Get the list stable from the official CI
+		wget https://ci-apps.yunohost.org/jenkins/logs/list_level_stable_raw --output-document=$script_dir/list_level_stable
 	fi
 
 	# Compare each app for this type with the level in stable

@@ -22,7 +22,7 @@ ci_type=$3
 if [ -z "$ci_type" ]
 then
 	echo "Please choose the tyep of CI to build"
-	echo -e "\t1) Mixed_content (All type in one CI)"
+	echo -e "\t1) Mixed content (All type in one CI)"
 	echo -e "\t2) Stable only"
 	echo -e "\t3) Testing and unstable"
 	echo -e "\t4) Deported ARM"
@@ -151,8 +151,6 @@ SETUP_CI_APP () {
 	SETUP_JENKINS
 }
 
-
-
 # Install YunoHost
 echo_bold "> Check if YunoHost is already installed."
 if [ ! -e /usr/bin/yunohost ]
@@ -211,6 +209,7 @@ fi
 # Installation of the CI software, which be used as the main interface.
 SETUP_CI_APP
 
+read -p "Pause..."
 
 # Installation of Package_check
 echo_bold "Installation of Package check with its CI script"
@@ -226,7 +225,7 @@ touch "$script_dir/../package_check/pcheck.lock" | $tee_to_log
 if [ "$ci_type" != "ARM" ]
 then
 	echo_bold "Replace the snapshot by a symbolic link"
-	lxc_name=$(cat "$script_dir/../package_check/config" | grep LXC_NAME= | cut -d '=' -f2)
+	lxc_name=$(grep LXC_NAME= "$script_dir/../package_check/config" | cut -d '=' -f2)
 	sudo mv /var/lib/lxcsnaps/$lxc_name /var/lib/lxcsnaps/pcheck_stable | $tee_to_log
 	sudo ln -s /var/lib/lxcsnaps/pcheck_stable /var/lib/lxcsnaps/$lxc_name | $tee_to_log
 
@@ -320,13 +319,13 @@ ARM=0
 CI=$ci_user
 
 # Path du logiciel de CI
-ci_path=$ci_path
+CI_PATH=$ci_path
 
 # Domaine utilisé
-domain=$domain
+DOMAIN=$domain
 
 # Type de CI
-ci_type=$ci_type
+CI_TYPE=$ci_type
 }
 EOF
 echo_bold "The config file has been built in $script_dir/auto.conf"
@@ -364,7 +363,7 @@ echo -e "\e[92mThe file $script_dir/xmpp_bot/password needs to be provided with 
 
 
 
-# TODO, build_CI need to be able to not install Package_check in case of ARM CI only.
+# DONE TODO, build_CI need to be able to not install Package_check in case of ARM CI only.
 # TODO list_app_ynh.sh, Check usage for stable only and testing/unstable only.
-# TODO, remove script
+# DONE TODO, remove script
 # TODO, Check all other scripts
