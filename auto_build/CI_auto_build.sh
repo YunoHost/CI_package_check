@@ -7,7 +7,7 @@
 script_dir="$(dirname $(realpath $0))"
 
 log_build_auto_ci="$script_dir/Log_build_auto_ci.log"
-tee_to_log="tee -a \"$log_build_auto_ci\" 2>&1"
+tee_to_log="tee -a $log_build_auto_ci 2>&1"
 default_ci_user=ynhci
 
 # This script can get as argument the domain for jenkins, the admin password of YunoHost and the type of installation requested.
@@ -19,6 +19,22 @@ yuno_pwd=$2
 # Can be 'Mixed_content', 'Stable', 'Testing_Unstable' or 'ARM'
 # Mixed_content is the old fashion CI with all the jobs in the same CI.
 ci_type=$3
+if [ -z "$ci_type" ]
+then
+	echo "Please choose the tyep of CI to build"
+	echo -e "\t1) Mixed_content (All type in one CI)"
+	echo -e "\t2) Stable only"
+	echo -e "\t3) Testing and unstable"
+	echo -e "\t4) Deported ARM"
+	read -p "?: " answer
+fi
+case $answer in
+	1) ci_type=Mixed_content ;;
+	2) ci_type=Stable ;;
+	3) ci_type=Testing_Unstable ;;
+	4) ci_type=ARM ;;
+	*) echo "CI type not defined !"; exit 1
+esac
 
 echo_bold () {
 	echo -e "\e[1m$1\e[0m" | $tee_to_log
@@ -35,40 +51,42 @@ SETUP_JENKINS () {
 	sudo yunohost app install https://github.com/YunoHost-Apps/jenkins_ynh -a "domain=$domain&path=/$ci_path&is_public=1" | $tee_to_log
 
 	# Keep 1 simultaneous test only
-	sudo sed -i "s/<numExecutors>.*</<numExecutors>1</" /var/lib/jenkins/config.xml
+	sudo sed -i "s/<numExecutors>.*</<numExecutors>1</" /var/lib/jenkins/config.xml | $tee_to_log
 
 	# Set the default view.
 	if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Stable" ]
 	then
 		# Default view as "Stable" instead of "All"
-		sudo sed -i "s/<primaryView>.*</<primaryView>Stable</" /var/lib/jenkins/config.xml
+		sudo sed -i "s/<primaryView>.*</<primaryView>Stable</" /var/lib/jenkins/config.xml | $tee_to_log
 	elif [ "$ci_type" = "Testing_Unstable" ]
+	then
 		# Default view as "Unstable" instead of "All"
-		sudo sed -i "s/<primaryView>.*</<primaryView>Unstable</" /var/lib/jenkins/config.xml
+		sudo sed -i "s/<primaryView>.*</<primaryView>Unstable</" /var/lib/jenkins/config.xml | $tee_to_log
 	elif [ "$ci_type" = "ARM" ]
+	then
 		# Default view as "ARM" instead of "All"
-		sudo sed -i "s/<primaryView>.*</<primaryView>ARM</" /var/lib/jenkins/config.xml
+		sudo sed -i "s/<primaryView>.*</<primaryView>ARM</" /var/lib/jenkins/config.xml | $tee_to_log
 	fi
 
 
 	# Set up an ssh connection for jenkins cli.
 	# Create a new ssh key.
 	echo_bold "> Create a ssh key for jenkins-cli."
-	ssh-keygen -t rsa -b 4096 -N "" -f "$script_dir/jenkins/jenkins_key" > /dev/null | $tee_to_log
+	ssh-keygen -t rsa -b 4096 -N "" -f "$script_dir/jenkins/jenkins_key" > /dev/null
 	sudo chown root: "$script_dir/jenkins/jenkins_key" | $tee_to_log
 	sudo chmod 600 "$script_dir/jenkins/jenkins_key" | $tee_to_log
 
 	# Configure jenkins to use this ssh key.
 	echo_bold "> Create a basic configuration for jenkins' user."
 	# Create a directory for this user.
-	sudo mkdir -p "/var/lib/jenkins/users/$ci_user"
+	sudo mkdir -p "/var/lib/jenkins/users/$ci_user" | $tee_to_log
 	# Copy the model of config.
-	sudo cp "$script_dir/jenkins/user_config.xml" "/var/lib/jenkins/users/$ci_user/config.xml"
+	sudo cp "$script_dir/jenkins/user_config.xml" "/var/lib/jenkins/users/$ci_user/config.xml" | $tee_to_log
 	# Add a name for this user.
 	sudo sed -i "s/__USER__/$ci_user/g" "/var/lib/jenkins/users/$ci_user/config.xml" | $tee_to_log
 	# Add the ssh key
 	sudo sed -i "s|__SSH_KEY__|$(cat "$script_dir/jenkins/jenkins_key.pub")|"  "/var/lib/jenkins/users/$ci_user/config.xml" | $tee_to_log
-	sudo chown jenkins: -R "/var/lib/jenkins/users"
+	sudo chown jenkins: -R "/var/lib/jenkins/users" | $tee_to_log
 	# Configure ssh port in jenkins config
 	echo | sudo tee "/var/lib/jenkins/org.jenkinsci.main.modules.sshd.SSHD.xml" <<EOF | $tee_to_log
 <?xml version='1.0' encoding='UTF-8'?>
@@ -95,34 +113,34 @@ EOF
 		sleep 1
 	done
 	kill -s 15 $pid_tail > /dev/null	# Stop tail
-	sudo rm "$tempfile"
+	sudo rm "$tempfile" | $tee_to_log
 	if [ "$i" -ge $timeout ]; then
 		echo "Jenkins hasn't started before the timeout (${timeout}s)." | $tee_to_log
 	fi
 
 
 	# Add new views in jenkins
-	jenkins_cli="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$domain/jenkins/ -i \"$script_dir/jenkins/jenkins_key\""
+	jenkins_cli="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$domain/jenkins/ -i $script_dir/jenkins/jenkins_key"
 	echo_bold "> Add new views in jenkins"
 	if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Stable" ]
 	then
-		$jenkins_cli create-view Official < "$script_dir/jenkins/Views_official.xml"
-		$jenkins_cli create-view Community < "$script_dir/jenkins/Views_community.xml"
-		$jenkins_cli create-view Stable < "$script_dir/jenkins/Views_stable.xml"
+		$jenkins_cli create-view Official < "$script_dir/jenkins/Views_official.xml" | $tee_to_log
+		$jenkins_cli create-view Community < "$script_dir/jenkins/Views_community.xml" | $tee_to_log
+		$jenkins_cli create-view Stable < "$script_dir/jenkins/Views_stable.xml" | $tee_to_log
 	fi
 	if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Testing_Unstable" ]
 	then
-		$jenkins_cli create-view Testing < "$script_dir/jenkins/Views_testing.xml"
-		$jenkins_cli create-view Unstable < "$script_dir/jenkins/Views_unstable.xml"
+		$jenkins_cli create-view Testing < "$script_dir/jenkins/Views_testing.xml" | $tee_to_log
+		$jenkins_cli create-view Unstable < "$script_dir/jenkins/Views_unstable.xml" | $tee_to_log
 	fi
 	if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "ARM" ]
 	then
-		$jenkins_cli create-view "Raspberry Pi" < "$script_dir/jenkins/Views_arm.xml"
+		$jenkins_cli create-view "Raspberry Pi" < "$script_dir/jenkins/Views_arm.xml" | $tee_to_log
 	fi
 
 
 	# Put jenkins as the default app on the root of the domain
-	sudo yunohost app makedefault -d "$domain" jenkins
+	sudo yunohost app makedefault -d "$domain" jenkins | $tee_to_log
 }
 # SPECIFIC PART FOR JENKINS (END)
 
@@ -143,7 +161,7 @@ then
 	echo_bold "Installation of YunoHost..."
 	sudo apt-get update | $tee_to_log
 	sudo apt-get install -y sudo git | $tee_to_log
-	git clone https://github.com/YunoHost/install_script /tmp/install_script
+	git clone https://github.com/YunoHost/install_script /tmp/install_script | $tee_to_log
 	cd /tmp/install_script; sudo ./install_yunohost -a | $tee_to_log
 
 	echo_bold "> YunoHost post install"
@@ -157,7 +175,7 @@ then
 		else
 			pass_arg=""
 		fi
-	sudo yunohost tools postinstall $domain_arg $pass_arg
+	sudo yunohost tools postinstall $domain_arg $pass_arg | $tee_to_log
 fi
 
 
@@ -177,7 +195,7 @@ else
 fi
 
 # Check if the user already exist
-if ! sudo yunohost user list --output-as json $pass_arg | grep -q "\"username\": \"$ci_user\""
+if ! sudo yunohost user list --output-as json $pass_arg | grep -q "\"username\": \"$default_ci_user\""
 then
 	if [ -n "$yuno_pwd" ]; then
 		pass_arg="--password $yuno_pwd --admin-password $yuno_pwd"
@@ -185,7 +203,7 @@ then
 		pass_arg=""
 	fi
 	echo_bold "> Create a YunoHost user"
-	sudo yunohost user create --firstname "$ci_user" --mail "$ci_user@$domain" --lastname "$ci_user" "$ci_user" $pass_arg
+	sudo yunohost user create --firstname "$default_ci_user" --mail "$default_ci_user@$domain" --lastname "$default_ci_user" "$default_ci_user" $pass_arg | $tee_to_log
 fi
 
 
@@ -197,11 +215,10 @@ SETUP_CI_APP
 # Installation of Package_check
 echo_bold "Installation of Package check with its CI script"
 "$script_dir/../build_CI.sh" | $tee_to_log
-# TODO, build_CI need to be able to not install Package_check in case of ARM CI only.
 
 # Put lock files to prevent any usage of package check during the installation.
-touch "$script_dir/../CI.lock"
-touch "$script_dir/../package_check/pcheck.lock"
+touch "$script_dir/../CI.lock" | $tee_to_log
+touch "$script_dir/../package_check/pcheck.lock" | $tee_to_log
 
 # Move the snapshot and replace it by a symbolic link
 # The symbolic link will allow to switch between Stable, Testing and Unstable container.
@@ -209,9 +226,9 @@ touch "$script_dir/../package_check/pcheck.lock"
 if [ "$ci_type" != "ARM" ]
 then
 	echo_bold "Replace the snapshot by a symbolic link"
-	lxc_name=$(cat "$script_dir/../package_check/config" | grep lxc_name= | cut -d '=' -f2)
-	sudo mv /var/lib/lxcsnaps/$lxc_name /var/lib/lxcsnaps/pcheck_stable
-	sudo ln -s /var/lib/lxcsnaps/pcheck_stable /var/lib/lxcsnaps/$lxc_name
+	lxc_name=$(cat "$script_dir/../package_check/config" | grep LXC_NAME= | cut -d '=' -f2)
+	sudo mv /var/lib/lxcsnaps/$lxc_name /var/lib/lxcsnaps/pcheck_stable | $tee_to_log
+	sudo ln -s /var/lib/lxcsnaps/pcheck_stable /var/lib/lxcsnaps/$lxc_name | $tee_to_log
 
 	# Create testing and unstable containers
 	# We will not create any new containers, but only duplicate the main snapshot, then modify it to create a testing and a unstable snapshot.
@@ -221,10 +238,10 @@ then
 		for change_version in testing unstable
 		do
 			# Add a new directory for the snapshot
-			sudo mkdir /var/lib/lxcsnaps/pcheck_$change_version
+			sudo mkdir /var/lib/lxcsnaps/pcheck_$change_version | $tee_to_log
 
 			echo_bold "> Copy the stable snapshot to create a snapshot for $change_version"
-			sudo cp -a /var/lib/lxcsnaps/pcheck_stable/snap0 /var/lib/lxcsnaps/pcheck_$change_version/snap0
+			sudo cp -a /var/lib/lxcsnaps/pcheck_stable/snap0 /var/lib/lxcsnaps/pcheck_$change_version/snap0 | $tee_to_log
 
 			echo_bold "> Configure repositories for $change_version"
 			if [ $change_version == testing ]; then
@@ -235,13 +252,13 @@ then
 			sudo echo "deb http://repo.yunohost.org/debian/ jessie stable $source" | sudo tee /var/lib/lxcsnaps/pcheck_$change_version/snap0/rootfs/etc/apt/sources.list.d/yunohost.list >> "$log_build_auto_ci" 2>&1
 
 			# Remove lock files to allow upgrade
-			sudo rm -f "$script_dir/../package_check/pcheck.lock" "$script_dir/../CI.lock"
+			sudo rm -f "$script_dir/../package_check/pcheck.lock" "$script_dir/../CI.lock" | $tee_to_log
 
 			echo_bold "> Upgrade the container $change_version"
 			sudo "$script_dir/auto_upgrade_container.sh" $change_version | $tee_to_log
 
 			# Put back the lock files
-			touch "$script_dir/../CI.lock" "$script_dir/../package_check/pcheck.lock"
+			touch "$script_dir/../CI.lock" "$script_dir/../package_check/pcheck.lock" | $tee_to_log
 
 			echo_bold "> Add an upgrade task in the cron for $change_version"
 			if [ "$change_version" == testing ]; then
@@ -256,7 +273,7 @@ then
 30 $cron_hour * * * root "$script_dir/auto_upgrade_container.sh" $change_version
 EOF
 			# Create a directory for the logs
-			mkdir "$script_dir/../logs/logs_$change_version"
+			mkdir "$script_dir/../logs/logs_$change_version" | $tee_to_log
 		done
 	fi
 fi
@@ -275,12 +292,12 @@ echo_bold "Add cron tasks"
 # Simply add CI_package_check_cron at the end of the current cron.
 cat "$script_dir/CI_package_check_cron" | sudo tee -a "/etc/cron.d/CI_package_check" > /dev/null
 # Then set the path
-sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check"
+sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check" | $tee_to_log
 
 
 # Add an access to logs in the nginx config
-echo | sudo tee -a "/etc/nginx/conf.d/$domain.d/$CI_PATH.conf" <<EOF | $tee_to_log
-location /$CI_PATH/logs {
+echo | sudo tee -a "/etc/nginx/conf.d/$domain.d/$ci_path.conf" <<EOF | $tee_to_log
+location /$ci_path/logs {
    alias $(dirname "$script_dir")/logs/;
    autoindex on;
 }
@@ -300,13 +317,16 @@ ARM=0
 
 # Les informations qui suivent ne doivent pas être modifiées. Elles sont générées par le script d'installation.
 # Utilisateur avec lequel s'exécute le logiciel de CI
-CI=$CI
+CI=$ci_user
 
 # Path du logiciel de CI
-CI_PATH=$CI_PATH
+ci_path=$ci_path
 
 # Domaine utilisé
 domain=$domain
+
+# Type de CI
+ci_type=$ci_type
 }
 EOF
 echo_bold "The config file has been built in $script_dir/auto.conf"
@@ -323,14 +343,13 @@ sudo chmod +x "$script_dir/xmpp_bot/xmpp_post.sh" | $tee_to_log
 
 
 # Remove lock files
-sudo rm -f "$script_dir/../package_check/pcheck.lock"
-sudo rm -f "$script_dir/../CI.lock"
+sudo rm -f "$script_dir/../package_check/pcheck.lock" | $tee_to_log
+sudo rm -f "$script_dir/../CI.lock" | $tee_to_log
 
 
 # Create jobs with list_app_ynh.sh
 echo_bold "Create jobs"
-sudo "$script_dir/list_app_ynh.sh"
-# TODO Check usage for stable only and testing/unstable only.
+sudo "$script_dir/list_app_ynh.sh" | $tee_to_log
 
 echo_bold "Check the access rights"
 if sudo su -l $CI -c "ls \"$script_dir\"" > /dev/null 2<&1
@@ -342,3 +361,10 @@ fi
 
 echo ""
 echo -e "\e[92mThe file $script_dir/xmpp_bot/password needs to be provided with the xmpp bot password.\e[0m" | $tee_to_log
+
+
+
+# TODO, build_CI need to be able to not install Package_check in case of ARM CI only.
+# TODO list_app_ynh.sh, Check usage for stable only and testing/unstable only.
+# TODO, remove script
+# TODO, Check all other scripts
