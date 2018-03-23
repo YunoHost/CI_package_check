@@ -79,13 +79,13 @@ SETUP_JENKINS () {
 	# Configure jenkins to use this ssh key.
 	echo_bold "> Create a basic configuration for jenkins' user."
 	# Create a directory for this user.
-	sudo mkdir -p "/var/lib/jenkins/users/$ci_user" | $tee_to_log
+	sudo mkdir -p "/var/lib/jenkins/users/$default_ci_user" | $tee_to_log
 	# Copy the model of config.
-	sudo cp "$script_dir/jenkins/user_config.xml" "/var/lib/jenkins/users/$ci_user/config.xml" | $tee_to_log
+	sudo cp "$script_dir/jenkins/user_config.xml" "/var/lib/jenkins/users/$default_ci_user/config.xml" | $tee_to_log
 	# Add a name for this user.
-	sudo sed -i "s/__USER__/$ci_user/g" "/var/lib/jenkins/users/$ci_user/config.xml" | $tee_to_log
+	sudo sed -i "s/__USER__/$default_ci_user/g" "/var/lib/jenkins/users/$default_ci_user/config.xml" | $tee_to_log
 	# Add the ssh key
-	sudo sed -i "s|__SSH_KEY__|$(cat "$script_dir/jenkins/jenkins_key.pub")|"  "/var/lib/jenkins/users/$ci_user/config.xml" | $tee_to_log
+	sudo sed -i "s|__SSH_KEY__|$(cat "$script_dir/jenkins/jenkins_key.pub")|"  "/var/lib/jenkins/users/$default_ci_user/config.xml" | $tee_to_log
 	sudo chown jenkins: -R "/var/lib/jenkins/users" | $tee_to_log
 	# Configure ssh port in jenkins config
 	echo | sudo tee "/var/lib/jenkins/org.jenkinsci.main.modules.sshd.SSHD.xml" <<EOF | $tee_to_log
@@ -95,6 +95,9 @@ SETUP_JENKINS () {
 </org.jenkinsci.main.modules.sshd.SSHD>
 EOF
 	sudo chown jenkins: "/var/lib/jenkins/org.jenkinsci.main.modules.sshd.SSHD.xml" | $tee_to_log
+
+	# Copy AnsiColor configuration
+	sudo cp "$script_dir/jenkins/hudson.plugins.ansicolor.AnsiColorBuildWrapper.xml" /var/lib/jenkins/
 
 	# Reboot jenkins to consider the new key
 	echo_bold "> Reboot jenkins to handle the new ssh key..."
@@ -120,7 +123,7 @@ EOF
 
 
 	# Add new views in jenkins
-	jenkins_cli="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$domain/jenkins/ -i $script_dir/jenkins/jenkins_key"
+	jenkins_cli="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -ssh -user $default_ci_user -noCertificateCheck -s https://$domain/jenkins/ -i $script_dir/jenkins/jenkins_key"
 	echo_bold "> Add new views in jenkins"
 	if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Stable" ]
 	then
@@ -201,7 +204,7 @@ then
 		pass_arg=""
 	fi
 	echo_bold "> Create a YunoHost user"
-	sudo yunohost user create --firstname "$default_ci_user" --mail "$default_ci_user@$domain" --lastname "$default_ci_user" "$default_ci_user" $pass_arg | $tee_to_log
+	sudo yunohost user create --firstname "$default_ci_user" --mail "$default_ci_user@$domain" --lastname "$default_ci_user" "$default_ci_user" $pass_arg
 fi
 
 
@@ -209,7 +212,33 @@ fi
 # Installation of the CI software, which be used as the main interface.
 SETUP_CI_APP
 
-read -p "Pause..."
+
+# Build a config file
+echo | sudo tee "$script_dir/auto.conf" <<EOF | $tee_to_log
+# Mail pour le rapport hebdommadaire
+MAIL_DEST=root
+
+
+# Instance disponibles sur d'autres architectures. Un job supplémentaire sera créé pour chaque architecture indiquée.
+x86-64b=0
+x86-32b=0
+ARM=0
+
+# Les informations qui suivent ne doivent pas être modifiées. Elles sont générées par le script d'installation.
+# Utilisateur avec lequel s'exécute le logiciel de CI
+CI=$ci_user
+
+# Path du logiciel de CI
+CI_PATH=$ci_path
+
+# Domaine utilisé
+DOMAIN=$domain
+
+# Type de CI
+CI_TYPE=$ci_type
+}
+EOF
+echo_bold "The config file has been built in $script_dir/auto.conf"
 
 # Installation of Package_check
 echo_bold "Installation of Package check with its CI script"
@@ -275,6 +304,12 @@ EOF
 			mkdir "$script_dir/../logs/logs_$change_version" | $tee_to_log
 		done
 	fi
+
+	# Remove the stable container for a Testing_Unstable CI.
+	if [ "$ci_type" = "Testing_Unstable" ]
+	then
+		sudo rm -r /var/lib/lxcsnaps/pcheck_stable
+	fi
 fi
 
 
@@ -303,34 +338,6 @@ location /$ci_path/logs {
 EOF
 
 
-# Build a config file
-echo | sudo tee "$script_dir/auto.conf" <<EOF | $tee_to_log
-# Mail pour le rapport hebdommadaire
-MAIL_DEST=root
-
-
-# Instance disponibles sur d'autres architectures. Un job supplémentaire sera créé pour chaque architecture indiquée.
-x86-64b=0
-x86-32b=0
-ARM=0
-
-# Les informations qui suivent ne doivent pas être modifiées. Elles sont générées par le script d'installation.
-# Utilisateur avec lequel s'exécute le logiciel de CI
-CI=$ci_user
-
-# Path du logiciel de CI
-CI_PATH=$ci_path
-
-# Domaine utilisé
-DOMAIN=$domain
-
-# Type de CI
-CI_TYPE=$ci_type
-}
-EOF
-echo_bold "The config file has been built in $script_dir/auto.conf"
-
-
 echo_bold "Set the XMPP bot"
 sudo apt-get install python-xmpp | $tee_to_log
 git clone https://github.com/YunoHost/weblate2xmpp "$script_dir/xmpp_bot" | $tee_to_log
@@ -347,8 +354,16 @@ sudo rm -f "$script_dir/../CI.lock" | $tee_to_log
 
 
 # Create jobs with list_app_ynh.sh
-echo_bold "Create jobs"
-sudo "$script_dir/list_app_ynh.sh" | $tee_to_log
+if [ "$ci_type" != "ARM" ]
+then
+	echo_bold "Create jobs"
+	sudo "$script_dir/list_app_ynh.sh" | $tee_to_log
+else
+	echo_bold "No build will be created now.
+First, please fill the file \"$script_dir/../config\" to add at least one ARM instance.
+Then, set ARM= to 1 in the config file \"$script_dir/auto.conf\"
+Finally, you can run $script_dir/list_app_ynh.sh to add new jobs."
+fi
 
 echo_bold "Check the access rights"
 if sudo su -l $CI -c "ls \"$script_dir\"" > /dev/null 2<&1
@@ -360,10 +375,3 @@ fi
 
 echo ""
 echo -e "\e[92mThe file $script_dir/xmpp_bot/password needs to be provided with the xmpp bot password.\e[0m" | $tee_to_log
-
-
-
-# DONE TODO, build_CI need to be able to not install Package_check in case of ARM CI only.
-# TODO list_app_ynh.sh, Check usage for stable only and testing/unstable only.
-# DONE TODO, remove script
-# TODO, Check all other scripts
