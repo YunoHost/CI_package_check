@@ -327,6 +327,10 @@ echo_bold "Add cron tasks"
 cat "$script_dir/CI_package_check_cron" | sudo tee -a "/etc/cron.d/CI_package_check" > /dev/null
 # Then set the path
 sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check" | $tee_to_log
+if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Stable" ]
+then
+	sudo sed -i "s@#Stable only#@@g" "/etc/cron.d/CI_package_check" | $tee_to_log
+fi
 
 
 # Add an access to logs in the nginx config
@@ -366,11 +370,11 @@ Finally, you can run $script_dir/list_app_ynh.sh to add new jobs."
 fi
 
 echo_bold "Check the access rights"
-if sudo su -l $CI -c "ls \"$script_dir\"" > /dev/null 2<&1
+if sudo su -l $ci_user -c "ls \"$script_dir\"" > /dev/null 2<&1
 then
 	echo -e "\e[92mAccess rights are good." | $tee_to_log
 else
-	echo -e "\e[91m$CI don't have access to the scripts !" | $tee_to_log
+	echo -e "\e[91m$ci_user don't have access to the scripts !" | $tee_to_log
 fi
 
 echo ""

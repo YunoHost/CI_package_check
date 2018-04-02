@@ -28,6 +28,8 @@ then
 	git clone https://github.com/YunoHost/package_check "$script_dir/package_check"
 	echo -e "\e[1mBuild the LXC container for Package check\e[0m"
 	sudo "$script_dir/package_check/sub_scripts/lxc_build.sh"
+else
+	mkdir "$script_dir/package_check"
 fi
 
 # Set the cron file

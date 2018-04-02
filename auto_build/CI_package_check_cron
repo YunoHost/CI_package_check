@@ -3,4 +3,4 @@
 10 4 * * * root "__PATH__/list_app_ynh.sh" >> "__PATH__/update_lists.log" 2>&1
 
 # Modifie le niveau des applications, après le rapport hebdomadaire.
-5 20 * * 5 root "__PATH__/update_level_apps.sh" >> "__PATH__/update_level_apps.log" 2>&1
+#Stable only#5 20 * * 5 root "__PATH__/update_level_apps.sh" >> "__PATH__/update_level_apps.log" 2>&1

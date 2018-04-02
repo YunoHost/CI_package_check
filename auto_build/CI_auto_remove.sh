@@ -12,6 +12,10 @@ REMOVE_JENKINS () {
 	sudo yunohost app remove jenkins
 	# Remove the ssh keys
 	sudo rm "$script_dir/jenkins/jenkins_key" "$script_dir/jenkins/jenkins_key.pub"
+	sudo rm -rf /var/lib/jenkins
+
+	domain=$(grep DOMAIN= "$script_dir/auto.conf" | cut -d= -f2)
+	sudo sed -i "/$domain/d" /root/.ssh/known_hosts
 }
 # SPECIFIC PART FOR JENKINS (END)
 
@@ -19,6 +23,8 @@ REMOVE_CI_APP () {
 	# Deletion of the CI front end
 	REMOVE_JENKINS
 }
+
+REMOVE_CI_APP
 
 echo -e "\e[1mRemove package check\e[0m"
 sudo "$script_dir/../package_check/sub_scripts/lxc_remove.sh"
