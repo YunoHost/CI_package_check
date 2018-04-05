@@ -142,6 +142,14 @@ EOF
 	fi
 
 
+	# Install aditionnal plugins
+	$jenkins_cli install-plugin naginator | $tee_to_log	# Rerun failed plugins
+	$jenkins_cli install-plugin greenballs | $tee_to_log	# Green ball instead of blue
+	$jenkins_cli install-plugin embeddable-build-status | $tee_to_log	# Give small pictures with status of builds.
+
+	# Restart for integrate new plugins
+	sudo systemctl restart jenkins | $tee_to_log
+
 	# Put jenkins as the default app on the root of the domain
 	sudo yunohost app makedefault -d "$domain" jenkins | $tee_to_log
 }
@@ -340,6 +348,7 @@ location /$ci_path/logs {
    autoindex on;
 }
 EOF
+sudo systemctl reload nginx
 
 
 echo_bold "Set the XMPP bot"
