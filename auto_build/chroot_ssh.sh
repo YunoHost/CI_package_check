@@ -93,11 +93,11 @@ sudo mount $chroot_dir/proc/loadavg
 sudo mount $chroot_dir/proc/uptime
 
 cp_which () {
-	sudo cp `which $1` $chroot_dir/bin/$1
+	sudo cp -aH `which $1` $chroot_dir/bin/$1
 }
 locate_and_cp () {
 	local path_of_file=$(locate $1 | head -n1)
-	sudo cp $path_of_file $chroot_dir/lib/
+	sudo cp -aH $path_of_file $chroot_dir/lib/
 }
 
 echo -e "\e[1m> Copie les fichiers ld-linux, selon l'arch.\e[0m"
@@ -143,6 +143,14 @@ cp_which uptime
 locate_and_cp libprocps.so.3
 locate_and_cp libdl.so.2
 locate_and_cp libc.so.6
+locate_and_cp libprocps.so.6
+locate_and_cp libsystemd.so.0
+locate_and_cp librt.so.1
+locate_and_cp liblzma.so.5
+locate_and_cp liblz4.so.1
+locate_and_cp libgcrypt.so.20
+locate_and_cp libgcc_s.so.1
+locate_and_cp libgpg-error.so.0
 echo -e "\e[1m> rsync.\e[0m"
 cp_which rsync
 locate_and_cp libarmmem.so
