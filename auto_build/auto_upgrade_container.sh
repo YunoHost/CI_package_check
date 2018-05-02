@@ -4,6 +4,8 @@
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
 type=$1
+# Type of CI
+ci_type="$(grep CI_TYPE "$script_dir/auto.conf" | cut -d '=' -f2)"
 
 # Vérifie que le CI ne tourne pas
 timeout=7200	# Durée d'attente maximale
@@ -30,6 +32,12 @@ sudo cat "$script_dir/../package_check/sub_scripts/ynh_version_$type" > "$script
 sudo "$script_dir/../package_check/sub_scripts/auto_upgrade.sh" >> "$script_dir/../package_check/upgrade_$type.log" 2>&1
 
 # Copie les numéros de version
-sudo cp "$script_dir/../package_check/sub_scripts/ynh_version" "$script_dir/../package_check/sub_scripts/ynh_version_$type"
+if [ "$ci_type" = "Next_debian" ]
+then
+	sudo cp "$script_dir/../package_check/sub_scripts/ynh_version" "$script_dir/../package_check/sub_scripts/ynh_version_$ci_type"
+else
+	sudo cp "$script_dir/../package_check/sub_scripts/ynh_version" "$script_dir/../package_check/sub_scripts/ynh_version_$type"
+fi
+
 
 rm "$script_dir/../CI.lock"
