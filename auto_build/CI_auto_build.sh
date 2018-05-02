@@ -26,6 +26,7 @@ then
 	echo -e "\t2) Stable only"
 	echo -e "\t3) Testing and unstable"
 	echo -e "\t4) Deported ARM"
+	echo -e "\t5) Stretch"
 	read -p "?: " answer
 fi
 case $answer in
@@ -33,6 +34,7 @@ case $answer in
 	2) ci_type=Stable ;;
 	3) ci_type=Testing_Unstable ;;
 	4) ci_type=ARM ;;
+	5) ci_type=Next_debian ;;
 	*) echo "CI type not defined !"; exit 1
 esac
 
@@ -125,11 +127,14 @@ EOF
 	# Add new views in jenkins
 	jenkins_cli="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -ssh -user $default_ci_user -noCertificateCheck -s https://$domain/jenkins/ -i $script_dir/jenkins/jenkins_key"
 	echo_bold "> Add new views in jenkins"
-	if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Stable" ]
+	if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Stable" ] || [ "$ci_type" = "Next_debian" ]
 	then
 		$jenkins_cli create-view Official < "$script_dir/jenkins/Views_official.xml" | $tee_to_log
 		$jenkins_cli create-view Community < "$script_dir/jenkins/Views_community.xml" | $tee_to_log
-		$jenkins_cli create-view Stable < "$script_dir/jenkins/Views_stable.xml" | $tee_to_log
+		if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Stable" ]
+		then
+			$jenkins_cli create-view Stable < "$script_dir/jenkins/Views_stable.xml" | $tee_to_log
+		fi
 	fi
 	if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Testing_Unstable" ]
 	then

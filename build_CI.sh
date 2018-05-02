@@ -27,6 +27,15 @@ if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" 2> /d
 then
 	git clone https://github.com/YunoHost/package_check "$script_dir/package_check"
 	echo -e "\e[1mBuild the LXC container for Package check\e[0m"
+
+	# Configure Package check to use another debian version
+	if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" 2> /dev/null = "Next_debian" ]
+	then
+		cp "$script_dir/package_check/config.modele" "$script_dir/package_check/config"
+		sed -i "s@DISTRIB=.*@DISTRIB=stretch@g" "$script_dir/package_check/config"
+		sed -i "s@BRANCH=.*@BRANCH=stretch@g" "$script_dir/package_check/config"
+	fi
+
 	sudo "$script_dir/package_check/sub_scripts/lxc_build.sh"
 else
 	mkdir "$script_dir/package_check"
