@@ -68,7 +68,7 @@ JENKINS_BUILD_JOB () {
 	fi
 
 	# For unstable type, remove the trigger on all commmunity apps
-	if [ "$type_test" = "unstable" ]
+	if [ "$type_test" = "unstable" ] && [ "$list" = "community" ]
 	then
 		sed --in-place 's@.*\*</spec>@#&@' "${base_jenkins_job}_load.xml"
 	fi
