@@ -1,34 +1,58 @@
 #!/bin/bash
 
-# Récupère le dossier du script
-if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
+# Install Package check and configure it to be used by a CI software
 
-CI=jenkins
-GET_CI_URL () {
-	sudo yunohost app map | grep $CI -m1 | cut -d: -f1
-}
+# Get the path of this script
+script_dir="$(dirname $(realpath $0))"
 
+ci_frontend=jenkins
+
+
+# Install git and at
 sudo apt-get update > /dev/null
 sudo apt-get install -y git at
 
-touch "$script_dir/CI.lock"	# Place le lock du CI, pour éviter des démarrages intempestifs avant la fin de l'installation
+# Set a lock file to prevent any start fo the CI during the install process.
+touch "$script_dir/CI.lock"
 
-touch "$script_dir/work_list"	# Créer le fichier work_list
-chmod 666 "$script_dir/work_list"	# Et lui donne le droit d'écriture par tout le monde. Car c'est le logiciel de CI qui va y écrire.
-mkdir -p "$script_dir/logs"	# Créer le dossier des logs
+# Create the work_list file
+touch "$script_dir/work_list"
+# And allow avery one to write into it. To allow the CI software to write.
+chmod 666 "$script_dir/work_list"
+# Create the directory for logs
+mkdir -p "$script_dir/logs"
 
-git clone https://github.com/YunoHost/package_check "$script_dir/package_check"
-echo -e "\e[1mBuild du conteneur LXC pour Package check\e[0m"
-sudo "$script_dir/package_check/sub_scripts/lxc_build.sh"	# Construit le conteneur LXC pour package_check
+# Install Package check if it isn't an ARM only CI.
+if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" 2> /dev/null != "ARM" ]
+then
+	git clone https://github.com/YunoHost/package_check "$script_dir/package_check"
+	echo -e "\e[1mBuild the LXC container for Package check\e[0m"
 
-sudo cp "$script_dir/CI_package_check_cron" /etc/cron.d/CI_package_check	# Et met en place le cron
+	# Configure Package check to use another debian version
+	if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" 2> /dev/null = "Next_debian" ]
+	then
+		cp "$script_dir/package_check/config.modele" "$script_dir/package_check/config"
+		sed -i "s@DISTRIB=.*@DISTRIB=stretch@g" "$script_dir/package_check/config"
+		sed -i "s@BRANCH=.*@BRANCH=stretch@g" "$script_dir/package_check/config"
+	fi
 
-sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check"	# Renseigne l'emplacement du script dans le cron
+	sudo "$script_dir/package_check/sub_scripts/lxc_build.sh"
+else
+	mkdir "$script_dir/package_check"
+fi
 
-cp "$script_dir/config.modele" "$script_dir/config"	# Créer le fichier de config
+# Set the cron file
+sudo cp "$script_dir/CI_package_check_cron" /etc/cron.d/CI_package_check
+sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check"
 
-ci_url=$(GET_CI_URL)	# Détermine l'url de l'outil de CI
-sed -i "s@CI_URL=@&$ci_url@g" "$script_dir/config"	# Ajoute l'url supposée du CI
+# Build a config file
+cp "$script_dir/config.modele" "$script_dir/config"
 
-sudo rm "$script_dir/CI.lock" # Libère le lock du CI
-echo -e "\e[1mPackage check est prêt à travailler en CI à partir de la liste de tâche work_list.\e[0m"
+# Get the url of the front end CI
+ci_url=$(sudo yunohost app map | grep $ci_frontend -m1 | cut -d: -f1)
+# Then add it to the config file
+sed -i "s@CI_URL=@&$ci_url@g" "$script_dir/config"
+
+# Remove the lock file
+sudo rm "$script_dir/CI.lock"
+echo -e "\e[1mPackage check is ready to work as a CI with the work_list file.\e[0m"

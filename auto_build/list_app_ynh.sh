@@ -7,7 +7,7 @@
 # Grab the script directory
 #=================================================
 
-if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
+script_dir="$(dirname $(realpath $0))"
 
 #=================================================
 #=================================================
@@ -19,7 +19,8 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 jenkins_job_path="/var/lib/jenkins/jobs"
 jenkins_url=$(grep DOMAIN= "$script_dir/auto.conf" | cut --delimiter='=' --fields=2)/$(grep CI_PATH= "$script_dir/auto.conf" | cut --delimiter='=' --fields=2)
 
-jenkins_java_call="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -noCertificateCheck -s https://$jenkins_url/ -i $script_dir/jenkins/jenkins_key"
+# jenkins_java_call="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -ssh -user $default_ci_user -noCertificateCheck -s https://$jenkins_url/ -i $script_dir/jenkins/jenkins_key"
+jenkins_java_call="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -ssh -user ynhci -noCertificateCheck -s https://$jenkins_url/ -i $script_dir/jenkins/jenkins_key"
 
 JENKINS_BUILD_JOB () {
 	# Build a jenkins job
@@ -32,11 +33,15 @@ JENKINS_BUILD_JOB () {
 	# If it's not the default architecture
 	if [ "$architecture" != "default" ]
 	then
-		# Use the arch job squeleton
-		cp "${base_jenkins_job}_arch.xml" "${base_jenkins_job}_load.xml"
+		# If it's a ARM only CI, build a classic job. Not dependant of a stable job
+		if [ "$ci_type" != "ARM" ]
+		then
+			# Use the arch job squeleton
+			cp "${base_jenkins_job}_arch.xml" "${base_jenkins_job}_load.xml"
+		fi
 
-	# If it's not the stable type of test
-	elif [ "$type_test" != "stable" ]
+	# If it's not the stable type of test or a stretch test
+	elif [ "$type_test" != "stable" ] || [ "$ci_type" = "Next_debian" ]
 	then
 		# Use the nostable job squeleton
 		cp "${base_jenkins_job}_nostable.xml" "${base_jenkins_job}_load.xml"
@@ -54,11 +59,16 @@ JENKINS_BUILD_JOB () {
 	# Put the job name, without its architecture (arch only)
 	sed --in-place "s@__PARENT_NAME__@$(echo "$job_name" | sed "s@ .~.*~.@@")@g" "${base_jenkins_job}_load.xml"
 
-	# Replace the type of test (Testing or unstable only)
-	sed --in-place "s@__TYPE__@$type_test@g" "${base_jenkins_job}_load.xml"
+	# Replace the type of test (Testing, unstable or stretch only)
+	if [ "$ci_type" = "Next_debian" ]
+	then
+		sed --in-place "s@__TYPE__@$ci_type@g" "${base_jenkins_job}_load.xml"
+	else
+		sed --in-place "s@__TYPE__@$type_test@g" "${base_jenkins_job}_load.xml"
+	fi
 
 	# For unstable type, remove the trigger on all commmunity apps
-	if [ "$type_test" = "unstable" ]
+	if [ "$type_test" = "unstable" ] && [ "$list" = "community" ]
 	then
 		sed --in-place 's@.*\*</spec>@#&@' "${base_jenkins_job}_load.xml"
 	fi
@@ -117,9 +127,12 @@ BUILD_JOB () {
 	# Get the architecture for this job
 	get_arch
 
-	if [ "$architecture" == "default" ]
+	if [ "$architecture" == "default" ] && [ "$ci_type" == "Mixed_content" ]
 	then
 		type_of_test="stable testing unstable"
+	elif [ "$architecture" == "default" ] && [ "$ci_type" == "Testing_Unstable" ]
+	then
+		type_of_test="testing unstable"
 	else
 		type_of_test="stable"
 	fi
@@ -143,9 +156,12 @@ REMOVE_JOB () {
 	# Get the architecture for this job
 	get_arch
 
-	if [ "$architecture" == "default" ]
+	if [ "$architecture" == "default" ] && [ "$ci_type" != "Mixed_content" ]
 	then
 		type_of_test="stable testing unstable"
+	elif [ "$architecture" == "default" ] && [ "$ci_type" != "Testing_Unstable" ]
+	then
+		type_of_test="testing unstable"
 	else
 		type_of_test="stable"
 	fi
@@ -229,8 +245,12 @@ PARSE_LIST () {
 		# Then add the name of the list, with the first character in uppercase
 		appname="$appname ($(echo ${list:0:1} | tr [:lower:] [:upper:])${list:1})"
 
-		# Print the repo and the name of the job into the list
-		echo "$repo;${appname}" >> "$ynh_list"
+		# Build a standard job only if it's not an ARM CI
+		if [ "$ci_type" != "ARM" ]
+		then
+			# Print the repo and the name of the job into the list
+			echo "$repo;${appname}" >> "$ynh_list"
+		fi
 
 		# Check the other architectures
 		for architecture in x86-64b x86-32b ARM
@@ -249,7 +269,7 @@ CLEAR_JOB () {
 	# Remove the jobs that not anymore in the YunoHost list
 
 	# Check each app in the list of current jobs
-	while read app
+	while read <&3 app
 	do
 
 		# Check if this app can be found in the yunohost list
@@ -272,14 +292,14 @@ CLEAR_JOB () {
 			# Remove the jobs for stable, testing and unstable
 			REMOVE_JOB
 		fi
-	done < "$parsed_current_jobs"
+	done 3< "$parsed_current_jobs"
 }
 
 ADD_JOB () {
 	# Add the jobs that not in the current jobs
 
 	# Check each app in the list of current jobs
-	while read app
+	while read <&3 app
 	do
 
 		# Check if this app can be found in the list of current jobs
@@ -295,7 +315,7 @@ ADD_JOB () {
 			# Build a job for stable, testing and unstable
 			BUILD_JOB
 		fi
-	done < "$ynh_list"
+	done 3< "$ynh_list"
 }
 
 #=================================================
@@ -308,6 +328,8 @@ parsed_current_jobs="$script_dir/parsed_current_jobs"
 message_file="$script_dir/job_send"
 # Purge the message file
 > "$message_file"
+# Type of CI
+ci_type="$(grep CI_TYPE "$script_dir/auto.conf" | cut -d '=' -f2)"
 
 # Work on the official list, then community list
 for list in official community

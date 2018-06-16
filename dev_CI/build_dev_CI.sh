@@ -163,6 +163,7 @@ location /$ci_path/logs {
 EOF
 sudo cat "/etc/nginx/conf.d/$domain.d/$ci_path.conf_copy" >> "/etc/nginx/conf.d/$domain.d/$ci_path.conf"
 sudo rm "/etc/nginx/conf.d/$domain.d/$ci_path.conf_copy"
+sudo systemctl reload nginx
 
 # Créer le fichier de configuration
 echo | sudo tee "$script_dir/config.conf" <<EOF | tee -a "$log_build"
