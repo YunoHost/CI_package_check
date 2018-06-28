@@ -13,6 +13,7 @@ script_dir="$(dirname $(realpath $0))"
 #=================================================
 
 jobs_directory="/home/yunohost.app/ssh_chroot_directories/Official/data"
+none_official_directory="/home/yunohost.app/ssh_chroot_directories/Official_fork/data"
 ynh_list="$jobs_directory/ynh_list"
 current_jobs="$jobs_directory/current_jobs"
 
@@ -76,6 +77,13 @@ do
 			echo "Update the branch $branch for the app $appname"
 			(cd "$branch_directory"
 			git pull)
+                        # If git return 1
+                        if [ $? -eq 1 ]
+                        then
+                                # Return code 1 is 'No such ref was fetched', so the branch doesn't exist anymore.
+                                echo "Remove the branch $branch for the app $appname"
+                                sudo rm -r "$app/$appname $branch"
+                        fi
 
 		# Otherwise, create a new directory for this branch
 		else
@@ -88,4 +96,24 @@ do
 			git checkout "$branch" > /dev/null)
 		fi
 	done 4< "$app/branches"
+done < "$current_jobs"
+
+#=================================================
+
+#=================================================
+# BUILD LIST OF OFFICIAL FORKS
+#=================================================
+
+sudo find "$none_official_directory" -maxdepth 1 -type d | tail -n+2 > "$current_jobs"
+
+#=================================================
+# UPDATE ALL BRANCHES
+#=================================================
+
+while read app
+do
+        # For each forked repository, update the code
+        echo "Update the official fork $app"
+        (cd "$app"
+        git pull -a)
 done < "$current_jobs"
