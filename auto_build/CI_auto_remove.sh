@@ -19,9 +19,17 @@ REMOVE_JENKINS () {
 }
 # SPECIFIC PART FOR JENKINS (END)
 
+# SPECIFIC PART FOR YUNORUNNER (START)
+REMOVE_YUNORUNNER () {
+	echo -e "\e[1mDeletion of YunoRunner\e[0m"
+	sudo yunohost app remove yunorunner
+}
+# SPECIFIC PART FOR YUNORUNNER (END)
+
 REMOVE_CI_APP () {
 	# Deletion of the CI front end
-	REMOVE_JENKINS
+# 	REMOVE_JENKINS
+ 	REMOVE_YUNORUNNER
 }
 
 REMOVE_CI_APP

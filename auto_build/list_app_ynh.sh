@@ -102,11 +102,54 @@ GET_GIT_URL_JENKINS () {
 #=================================================
 # END OF JENKINS SPECIFIC PART
 #=================================================
+
+#=================================================
+# YUNORUNNER SPECIFIC PART
+#=================================================
+# This part must be duplicated and rewrite to be used with another software than YunoRunner
+# Then change all calls of these functions
+
+yunorunner_job_path="/var/www/yunorunner/???"
+yunorunner_url=$(grep DOMAIN= "$script_dir/auto.conf" | cut --delimiter='=' --fields=2)/$(grep CI_PATH= "$script_dir/auto.conf" | cut --delimiter='=' --fields=2)
+
+YUNORUNNER_BUILD_JOB () {
+	# Build a YunoRunner job
+
+# ve3/bin/python add_job.py
+# usage: add_job.py [-h] [-t TEST_TYPE] [-y YUNOHOST_VERSION]
+#                   [--debian-version DEBIAN_VERSION] [-r REVISION]
+#                   [--domain DOMAIN]
+#                   name url-or-path
+# add_job.py: error: the following arguments are required: name, url-or-path
+???
+}
+
+YUNORUNNER_REMOVE_JOB () {
+	# Remove a YunoRunner job
+	???
+}
+
+YUNORUNNER_LIST_JOBS () {
+	# List current jobs only for the specified list
+# 	$jenkins_java_call list-jobs Stable | grep --ignore-case "($list)" > "$current_jobs"
+	???
+}
+
+GET_GIT_URL_YUNORUNNER () {
+	# Get the url of the git repository from the job file
+# 	local url=$(grep "<url>" "/var/lib/jenkins/jobs/$app/config.xml" | cut --delimiter='>' --fields=2 | cut --delimiter='<' --fields=1)
+# 	echo "$url"
+	???
+}
+
+#=================================================
+# END OF YUNORUNNER SPECIFIC PART
+#=================================================
 #=================================================
 
 # Path of directory which contains the jobs
-# Replace this variable if you use another software than Jenkins
-job_path=$jenkins_job_path
+# Replace this variable if you use another software than YunoRunner
+job_path=$yunorunner_job_path
 
 #=================================================
 # Get the architecture for the current job
@@ -147,7 +190,8 @@ BUILD_JOB () {
 		fi
 
 		# Build a job
-		JENKINS_BUILD_JOB
+# 		JENKINS_BUILD_JOB
+ 		YUNORUNNER_BUILD_JOB
 	done
 }
 
@@ -176,7 +220,8 @@ REMOVE_JOB () {
 			job_name="$appname ($type_test)"
 			log_type_path="$type_test/"
 		fi
-		JENKINS_REMOVE_JOB
+# 		JENKINS_REMOVE_JOB
+		YUNORUNNER_REMOVE_JOB
 
 		# Build the log names
 		if [ "$architecture" = "default" ]; then
@@ -203,15 +248,18 @@ BUILD_LIST () {
 	# Build a list of all jobs currently in the CI for this list
 
 	# List current jobs only for the specified list
-	JENKINS_LIST_JOBS
+# 	JENKINS_LIST_JOBS
+	YUNORUNNER_LIST_JOBS
+
 
 	# Purge the list of job
 	> "$parsed_current_jobs"
 
-	# Read each app listed by {JENKINS}_LIST_JOBS
+	# Read each app listed by {YUNORUNNER}_LIST_JOBS
 	while read app
 	do
-		local repo=$(GET_GIT_URL_JENKINS)
+# 		local repo=$(GET_GIT_URL_JENKINS)
+		local repo=$(GET_GIT_URL_YUNORUNNER)
 		# Print a list with each app and its repository
 		echo "$repo;$app" >> "$parsed_current_jobs"
 	done < "$current_jobs"

@@ -181,11 +181,11 @@ then
 		exit 0
 	fi
 
-	# If it isn't a Mixed_content CI (stable, tesing and unstable on the same server)
+	# If it isn't a Mixed_content CI (stable, testing and unstable on the same server)
 	if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" != "Mixed_content" ]
 	then
 		# Get the list stable from the official CI
-		wget https://ci-apps.yunohost.org/jenkins/logs/list_level_stable_raw --output-document=$script_dir/list_level_stable
+		wget https://ci-apps.yunohost.org/ci/logs/list_level_stable_raw --output-document=$script_dir/list_level_stable
 	fi
 
 	# Compare each app for this type with the level in stable

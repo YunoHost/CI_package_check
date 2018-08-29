@@ -47,7 +47,7 @@ SETUP_JENKINS () {
 	# User which execute the CI software.
 	ci_user=jenkins
 	# Web path of the CI
-	ci_path=jenkins
+	ci_path=ci
 
 	echo_bold "> Installation of jenkins..."
 	sudo yunohost app install https://github.com/YunoHost-Apps/jenkins_ynh -a "domain=$domain&path=/$ci_path&is_public=1" | $tee_to_log
@@ -157,11 +157,49 @@ EOF
 }
 # SPECIFIC PART FOR JENKINS (END)
 
+# SPECIFIC PART FOR YUNORUNNER (START)
+SETUP_YUNORUNNER () {
+	# User which execute the CI software.
+	ci_user=yunorunner
+	# Web path of the CI
+	ci_path=ci
+
+	echo_bold "> Installation of YunoRunner..."
+	sudo yunohost app install https://github.com/YunoHost-Apps/yunorunner_ynh_core -a "domain=$domain&path=/$ci_path" | $tee_to_log
+
+	# Stop YunoRunner
+	sudo systemctl stop yunorunner | $tee_to_log
+
+	echo_bold "> Configure the path of CI_package_check..."
+	sudo sed --in-place "s@/home/CI_package_check/analyseCI.sh@$script_dir/../analyseCI.sh@g" /etc/systemd/system/yunorunner.service | $tee_to_log
+
+	# Set the type of CI if needed.
+	if [ "$ci_type" = "Testing_Unstable" ]
+	then
+		sudo sed -i "s/^ExecStart.*/& -t testing-unstable/" /etc/systemd/system/yunorunner.service | $tee_to_log
+	elif [ "$ci_type" = "ARM" ]
+	then
+		sudo sed -i "s/^ExecStart.*/& -t arm/" /etc/systemd/system/yunorunner.service | $tee_to_log
+	fi
+	# Remove the original database, in order to rebuilt it with the new config.
+	sudo rm /var/www/yunorunner/db.sqlite
+
+	# Reboot YunoRunner to consider the configuration
+	echo_bold "> Reboot YunoRunner..."
+	sudo systemctl daemon-reload
+	sudo systemctl restart yunorunner | $tee_to_log
+
+	# Put YunoRunner as the default app on the root of the domain
+	sudo yunohost app makedefault -d "$domain" yunorunner | $tee_to_log
+}
+# SPECIFIC PART FOR YUNORUNNER (END)
+
 
 SETUP_CI_APP () {
 	# Setting up of a CI software as a frontend.
 	# To change the software, add a new function for it and replace the following call.
-	SETUP_JENKINS
+# 	SETUP_JENKINS
+	SETUP_YUNORUNNER
 }
 
 # Install YunoHost
@@ -342,7 +380,6 @@ then
 	sudo sed -i "s@#Stable only#@@g" "/etc/cron.d/CI_package_check" | $tee_to_log
 fi
 
-
 # Add an access to logs in the nginx config
 echo | sudo tee -a "/etc/nginx/conf.d/$domain.d/$ci_path.conf" <<EOF | $tee_to_log
 location /$ci_path/logs {
@@ -367,18 +404,25 @@ sudo chmod +x "$script_dir/xmpp_bot/xmpp_post.sh" | $tee_to_log
 sudo rm -f "$script_dir/../package_check/pcheck.lock" | $tee_to_log
 sudo rm -f "$script_dir/../CI.lock" | $tee_to_log
 
-
-# Create jobs with list_app_ynh.sh
-if [ "$ci_type" != "ARM" ]
+# Disable list_app_ynh.sh for YunoRunner which doesn't need it.
+if [ "$ci_user" == "yunorunner" ]
 then
-	echo_bold "Create jobs"
-	sudo "$script_dir/list_app_ynh.sh" | $tee_to_log
+	sudo sed -i "s.*list_app_ynh.sh.*@#&@g" "/etc/cron.d/CI_package_check" | $tee_to_log
 else
-	echo_bold "No build will be created now.
+	# Create jobs with list_app_ynh.sh
+	if [ "$ci_type" != "ARM" ]
+	then
+		echo_bold "Create jobs"
+		sudo "$script_dir/list_app_ynh.sh" | $tee_to_log
+	else
+		echo_bold "No build will be created now.
 First, please fill the file \"$script_dir/../config\" to add at least one ARM instance.
 Then, set ARM= to 1 in the config file \"$script_dir/auto.conf\"
 Finally, you can run $script_dir/list_app_ynh.sh to add new jobs."
+	fi
 fi
+
+
 
 echo_bold "Check the access rights"
 if sudo su -l $ci_user -c "ls \"$script_dir\"" > /dev/null 2<&1
