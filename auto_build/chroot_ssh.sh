@@ -51,6 +51,8 @@ if [ -e "$chroot_dir" ]
 then
 	echo -e "\e[1m> Un dossier de chroot existe déjà.\e[0m"
 	echo -e "\e[1m> Il va être supprimé préalablement.\e[0m"
+	# Backup the config file, to avoid to destroy it.
+	sudo mv "$chroot_dir/CI_package_check/package_check/config" "$script_dir/config.backup"
 	"$script_dir/chroot_ssh.sh" --remove
 fi
 
@@ -198,6 +200,13 @@ sudo chown $user_ssh: -R $chroot_dir/.ssh/
 echo -e "\e[1m> Et bridage de la clé.\e[0m"
 sudo sed -i 's/^.*/no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty &/g' $chroot_dir/.ssh/authorized_keys
 sudo service ssh reload
+
+# If there's a backup of a previous config file for package check, put it back.
+if [ -e "$script_dir/config.backup" ]
+then
+        sudo mkdir "$chroot_dir/CI_package_check/package_check"
+        sudo mv "$script_dir/config.backup" "$chroot_dir/CI_package_check/package_check/config"
+fi
 
 
 echo -e "\e[1m> Installe CI_package_check dans le dossier.\e[0m"
