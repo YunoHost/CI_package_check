@@ -25,8 +25,12 @@ mkdir -p "$script_dir/logs"
 # Install Package check if it isn't an ARM only CI.
 if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" 2> /dev/null != "ARM" ]
 then
-	git clone https://github.com/YunoHost/package_check "$script_dir/package_check"
+	git clone https://github.com/YunoHost/package_check "$script_dir/package_check_clone"
 	echo -e "\e[1mBuild the LXC container for Package check\e[0m"
+	# Get over the limitation of git clone that can't clone in a non empty directory...
+	mkdir -p "$script_dir/package_check"
+	cp -R "$script_dir/package_check_clone/." "$script_dir/package_check"
+	rm -R "$script_dir/package_check_clone"
 
 	# Configure Package check to use another debian version
 	if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" 2> /dev/null = "Next_debian" ]
