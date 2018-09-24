@@ -295,7 +295,7 @@ EXEC_PCHECK () {
 					echo "No ssh instances available..."
 					if [ -z "$list_busy1_instance" ]; then
 						# If there no instance previously put aside. Abort
-						break
+						ssh=1
 					else
 						# If there some busy instances, try to use them anyway
 						list_instance="$list_busy1_instance"
