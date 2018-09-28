@@ -29,7 +29,7 @@ do
 		then	# Si le log contient un niveau pour l'app
 			app_level="${app_level##*: }"
 			app_level=$(echo "$app_level" | cut -d' ' -f1)
-			./change_level.py ${list,,}.json $app $app_level	# Appel le script change_level.py pour modifier le niveau de l'app dans la liste. ${list,,} permet de passer la variable en minuscule
+			./change_level.py ${list,,}.json "$app" "$app_level"	# Appel le script change_level.py pour modifier le niveau de l'app dans la liste. ${list,,} permet de passer la variable en minuscule
 		fi
 	fi
 done <<< "$(ls -1 "$script_dir/../logs")"
@@ -40,12 +40,12 @@ git commit -q -m "Update app's level" | tee -a "$script_dir/mail_content"
 
 # Git doit être configuré sur la machine.
 # git config --global user.email "MAIL..."
-# git config --global user.name "ynh-CI-bot"
-# ssh-keygen -t dsa -f $HOME/.ssh/github -P ''		Pour créer une clé ssh sans passphrase
+# git config --global user.name "yunohost-bot"
+# ssh-keygen -t rsa -f $HOME/.ssh/github -P ''		Pour créer une clé ssh sans passphrase
 # Host github.com
 # IdentityFile ~/.ssh/github
 # Dans le config ssh
-# Et la clé doit être enregistrée dans le compte github de ynh-CI-bot
+# Et la clé doit être enregistrée dans le compte github de yunohost-bot
 git push -q -u origin modify_level | tee -a "$script_dir/mail_content"
 
 mail -s "[YunoHost] Modification du niveau des applications" "$dest" < "$script_dir/mail_content"	# Envoi le log de git par mail.
