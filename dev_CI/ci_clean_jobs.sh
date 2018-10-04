@@ -32,7 +32,7 @@ do
 	# Get the directory for this job in the list
 	directory="$(grep -m1 "$app" "$ssh_chroot_directory/list_job_dir" | cut -d':' -f2)"
 	# If there no file newer than 180 days (6 months), remove this app.
-	if ! find "$directory" -type f -mtime -180 > /dev/null 2>&1
+	if [ $(find "$directory" -type f -mtime -180 ! -path "*.git*" | wc --lines) -eq 0 ]
 	then
 		echo "Remove the old app $app"
 		sudo rm -r "$directory"
