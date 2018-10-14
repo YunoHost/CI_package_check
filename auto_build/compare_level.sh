@@ -38,6 +38,17 @@ app_level="${app_level##*: }"
 app_level=$(echo "$app_level" | cut -d' ' -f1)
 
 #=================================================
+# Add a badge with the level of the app
+#=================================================
+
+if [ -n "$app_level" ]
+then
+	cp "$script_dir/badges/level${app_level}.svg" "$script_dir/../logs/$test_name.svg"
+else
+	cp "$script_dir/badges/unknown.svg" "$script_dir/../logs/$test_name.svg"
+fi
+
+#=================================================
 # Store the level in a list
 #=================================================
 

@@ -421,6 +421,8 @@ Finally, you can run $script_dir/list_app_ynh.sh to add new jobs."
 	fi
 fi
 
+# Download the badges to put in logs
+$script_dir/badges/get_badges.sh
 
 
 echo_bold "Check the access rights"
