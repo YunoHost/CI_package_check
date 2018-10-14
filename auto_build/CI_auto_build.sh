@@ -190,8 +190,12 @@ SETUP_YUNORUNNER () {
 	then
 		sudo sed -i "s/^ExecStart.*/& -t arm/" /etc/systemd/system/yunorunner.service | $tee_to_log
 	fi
+
 	# Remove the original database, in order to rebuilt it with the new config.
 	sudo rm /var/www/yunorunner/db.sqlite
+
+	# Create a random token for ciclic
+	cat /dev/urandom | tr -dc _A-Za-z0-9 | head -c${1:-80} | sudo tee /var/www/yunorunner/token /var/www/yunorunner/tokens
 
 	# Reboot YunoRunner to consider the configuration
 	echo_bold "> Reboot YunoRunner..."
