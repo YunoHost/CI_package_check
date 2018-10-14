@@ -154,6 +154,15 @@ EOF
 
 	# Put jenkins as the default app on the root of the domain
 	sudo yunohost app makedefault -d "$domain" jenkins | $tee_to_log
+
+	# Add an access to logs in the nginx config
+	echo | sudo tee -a "/etc/nginx/conf.d/$domain.d/$ci_path.conf" <<EOF | $tee_to_log
+location /$ci_path/logs {
+	alias $(dirname "$script_dir")/logs/;
+	autoindex on;
+}
+EOF
+	sudo systemctl reload nginx
 }
 # SPECIFIC PART FOR JENKINS (END)
 
@@ -379,16 +388,6 @@ if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Stable" ]
 then
 	sudo sed -i "s@#Stable only#@@g" "/etc/cron.d/CI_package_check" | $tee_to_log
 fi
-
-# Add an access to logs in the nginx config
-echo | sudo tee -a "/etc/nginx/conf.d/$domain.d/$ci_path.conf" <<EOF | $tee_to_log
-location /$ci_path/logs {
-   alias $(dirname "$script_dir")/logs/;
-   autoindex on;
-}
-EOF
-sudo systemctl reload nginx
-
 
 echo_bold "Set the XMPP bot"
 sudo apt-get install python-xmpp | $tee_to_log
