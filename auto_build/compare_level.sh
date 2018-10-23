@@ -181,7 +181,7 @@ list=$(echo "$test_name" | grep -q "Official" && echo "official" || echo "commun
 arch=$(echo "$test_name" | grep -q "~ARM~" && echo "arm" || echo "x86")
 
 # Build json line out of those infos
-echo "{ \"test_name\": \"$test_name\", \"app\": \"$app\", \"list\": \"$list\", \"arch\": \"$arch\", \"branch\": \"$type\", \"level\": $app_level, \"success\": $success, \"detailled_success\": [$tests_results_json ], \"timestamp\": $(date +%s) },"
+echo "{ \"test_name\": \"$test_name\", \"app\": \"$app\", \"list\": \"$list\", \"arch\": \"$arch\", \"branch\": \"$type\", \"level\": $app_level, \"success\": $success, \"detailled_success\": [$tests_results_json ], \"timestamp\": $(date +%s) }," >> "$public_list_file.json"
 
 #=================================================
 # For testing and unstable, compare with stable
