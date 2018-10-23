@@ -174,7 +174,14 @@ do
 done
 # Remove the last comma
 tests_results_json=${tests_results_json%,}
-echo "{ \"$test_name\": { \"level\": $app_level, \"success\": $success, \"detailled_success\": [$tests_results_json ], \"date\": \"$(date)\", \"timestamp\": $(date +%s) } }" >> "$public_list_file.json"
+
+# Extract app name, list name and arch from test_name
+app=$(echo "$test_name" | awk '{print $1}')
+list=$(echo "$test_name" | grep -q "Official" && echo "official" || echo "community")
+arch=$(echo "$test_name" | grep -q "~ARM~" && echo "arm" || echo "x86")
+
+# Build json line out of those infos
+echo "{ \"test_name\": \"$test_name\", \"app\": \"$app\", \"list\": \"$list\", \"arch\": \"$arch\", \"branch\": \"$type\", \"level\": $app_level, \"success\": $success, \"detailled_success\": [$tests_results_json ], \"timestamp\": $(date +%s) }," >> "$public_list_file.json"
 
 #=================================================
 # For testing and unstable, compare with stable
