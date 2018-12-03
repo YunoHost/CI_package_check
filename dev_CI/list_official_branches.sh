@@ -29,15 +29,21 @@ sudo find "$jobs_directory" -maxdepth 1 -type d | tail -n+2 > "$current_jobs"
 
 while read app
 do
-	appname="$(basename $app)_ynh"
-	# List all branches
-	(cd "$app/$appname testing"
-	git branch --remotes > "$app/branches")
+        appname="$(basename $app)_ynh"
+        # List all branches
+        if [ ! -e "$app/$appname testing" ]
+        then
+                git clone --quiet "https://github.com/YunoHost-Apps/${appname}" "$app/$appname testing" > /dev/null
+                (cd "$app/$appname testing"
+                git checkout testing > /dev/null)
+        fi
+        (cd "$app/$appname testing"
+        git branch --remotes > "$app/branches")
 
-	# Then clean the list
-	sed -i '\|origin/HEAD*|d' "$app/branches"
-	sed -i '\|origin/master*|d' "$app/branches"
-	sed -i 's|  origin/||' "$app/branches"
+        # Then clean the list
+        sed -i '\|origin/HEAD*|d' "$app/branches"
+        sed -i '\|origin/master*|d' "$app/branches"
+        sed -i 's|  origin/||' "$app/branches"
 done < "$current_jobs"
 
 #=================================================
