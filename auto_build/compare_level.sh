@@ -38,6 +38,22 @@ app_level="${app_level##*: }"
 app_level=$(echo "$app_level" | cut -d' ' -f1)
 
 #=================================================
+# Do not update an existing level if there's no level found.
+#=================================================
+
+# Each type have its own list
+list_file="$script_dir/list_level_$type"
+
+if [ -z "$app_level" ]
+then
+	if grep --quiet "^$test_name:" "$list_file"
+	then
+		echo "This app has already a level. The last test failed to define a new level. Keep the previous level for this app."
+		exit 0
+	fi
+fi
+
+#=================================================
 # Add a badge with the level of the app
 #=================================================
 
@@ -51,9 +67,6 @@ fi
 #=================================================
 # Store the level in a list
 #=================================================
-
-# Each type have its own list
-list_file="$script_dir/list_level_$type"
 
 # If a level has been found
 if [ -n "$app_level" ]
@@ -260,4 +273,3 @@ then
 		rm "$message_file"
 	fi
 fi
-
