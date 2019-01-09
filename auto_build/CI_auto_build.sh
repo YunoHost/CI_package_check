@@ -285,6 +285,9 @@ x86-64b=0
 x86-32b=0
 ARM=0
 
+# Max tests without a level (usually a crash of the CI or an app) before sending an alert.
+MAX_CRASH=10
+
 # Les informations qui suivent ne doivent pas être modifiées. Elles sont générées par le script d'installation.
 # Utilisateur avec lequel s'exécute le logiciel de CI
 CI=$ci_user

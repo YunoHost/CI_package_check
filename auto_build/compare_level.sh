@@ -49,8 +49,39 @@ then
 	if grep --quiet "^$test_name:" "$list_file"
 	then
 		echo "This app has already a level. The last test failed to define a new level. Keep the previous level for this app."
+
+		# If a test fails to define a level, that means that the CI has crashed. Either because of an error in the CI, either because of a timeout from the app.
+		# Get the value of MAX_CRASH from the config file
+		max_crash="$(grep MAX_CRASH= "$script_dir/auto.conf" | cut --delimiter='=' --fields=2)"
+		# Set 10 as a default value if there's no value in auto.conf
+		if [ -z "$max_crash" ]; then
+			max_crash=10
+		fi
+		crash_counter_file="$script_dir/crash_counter"
+		if [ ! -e "$crash_counter_file" ]
+		then
+			crash_counter=1
+		else
+			# Increment the number of successive crash.
+			crash_counter=$(( $(cat $crash_counter_file) + 1 ))
+		fi
+		if [ $crash_counter -ge $max_crash ]
+		then
+			# Get the mail the config file
+			dest=$(cat "$script_dir/auto.conf" | grep MAIL_DEST= | cut -d '=' -f2)
+			# Send an alert by email
+			mail -s "[YunoHost] Crash of $CI_url" "$dest" <<< "$(echo -e "The CI $CI_url has failed $max_crash times.\nPlease have a look to this CI to fix it.")"
+			# Reinit the crash counter
+			crash_counter=0
+		fi
+		# Update the file with the new value of the counter.
+		echo $crash_counter > "$crash_counter_file"
+
 		exit 0
 	fi
+else
+	# Reinit the crash counter
+	echo "0" > "$crash_counter_file"
 fi
 
 #=================================================
