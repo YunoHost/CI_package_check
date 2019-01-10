@@ -21,12 +21,12 @@ yuno_pwd=$2
 ci_type=$3
 if [ -z "$ci_type" ]
 then
-	echo "Please choose the tyep of CI to build"
+	echo "Please choose the type of CI to build"
 	echo -e "\t1) Mixed content (All type in one CI)"
 	echo -e "\t2) Stable only"
 	echo -e "\t3) Testing and unstable"
 	echo -e "\t4) Deported ARM"
-	echo -e "\t5) Stretch"
+	echo -e "\t5) Jessie"
 	read -p "?: " answer
 fi
 case $answer in
@@ -341,7 +341,7 @@ then
 			else
 				source="testing unstable"
 			fi
-			sudo echo "deb http://repo.yunohost.org/debian/ jessie stable $source" | sudo tee /var/lib/lxcsnaps/pcheck_$change_version/snap0/rootfs/etc/apt/sources.list.d/yunohost.list >> "$log_build_auto_ci" 2>&1
+			sudo echo "deb http://repo.yunohost.org/debian/ stretch stable $source" | sudo tee /var/lib/lxcsnaps/pcheck_$change_version/snap0/rootfs/etc/apt/sources.list.d/yunohost.list >> "$log_build_auto_ci" 2>&1
 
 			# Remove lock files to allow upgrade
 			sudo rm -f "$script_dir/../package_check/pcheck.lock" "$script_dir/../CI.lock" | $tee_to_log

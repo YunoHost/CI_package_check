@@ -51,7 +51,7 @@ do
 	else
 		source="testing unstable"
 	fi
-	sudo echo "deb http://repo.yunohost.org/debian/ jessie stable $source" | sudo tee /var/lib/lxcsnaps/pcheck_$change_version/snap0/rootfs/etc/apt/sources.list.d/yunohost.list
+	sudo echo "deb http://repo.yunohost.org/debian/ stretch stable $source" | sudo tee /var/lib/lxcsnaps/pcheck_$change_version/snap0/rootfs/etc/apt/sources.list.d/yunohost.list
 
 	# Remove lock files to allow upgrade
 	sudo rm -f "$script_dir/../package_check/pcheck.lock" "$script_dir/../CI.lock"
