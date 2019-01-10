@@ -367,6 +367,12 @@ EOF
 			# Create a directory for the logs
 			mkdir "$script_dir/../logs/logs_$change_version" | $tee_to_log
 		done
+		# Add another cron for triggering the upgrade of the container testing and unstable
+		echo | sudo tee -a "/etc/cron.d/CI_package_check" <<EOF | $tee_to_log
+
+# Trig tests in case of upgrade of containers testing and unstable
+30 6 * * * root "$script_dir/testing_unstable_trigger.sh" >> "$script_dir/testing_unstable_trigger.log" 2>&1
+EOF
 	fi
 
 	# Remove the stable container for a Testing_Unstable CI.
