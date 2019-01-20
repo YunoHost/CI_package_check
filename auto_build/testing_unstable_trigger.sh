@@ -36,11 +36,12 @@ fi
 md5sum "$version_file" > "$md5_file"
 
 start_jobs () {
-	while read app
-	do
-echo "app=$app"
-# 		( cd "$yunorunner_path"; ve3/bin/python ciclic start "$app" )
-	done <<< $( cd "$yunorunner_path"; ve3/bin/python ciclic list | grep "$list_filter" )
+        while read app
+        do
+                repo="${app##* \- }"
+                app="${app%% \- *} ($type)"
+                ( cd "$yunorunner_path"; ve3/bin/python ciclic add "$app" "$repo" )
+        done <<< $( cd "$yunorunner_path"; ve3/bin/python ciclic app-list | grep "$list_filter" )
 }
 
 yunorunner_path="/var/www/yunorunner"
@@ -49,7 +50,7 @@ if [ $testing_upgrade -eq 1 ]
 then
 	echo "> Start tests for all community and official apps for testing"
 	type=testing
-	list_filter="testing"
+	list_filter=""
 	start_jobs
 fi
 
@@ -57,6 +58,6 @@ if [ $unstable_upgrade -eq 1 ]
 then
 	echo "> Start tests for all official apps for unstable"
 	type=unstable
-	list_filter="Official.*unstable"
+	list_filter="Official"
 	start_jobs
 fi
