@@ -606,4 +606,41 @@ then
 
 	# Delay the process of comparaison of the level
 	echo "\"$script_dir/auto_build/compare_level.sh\" \"$test_name\" \"$app_log\" >> \"$script_dir/auto_build/compare_level.log\" 2>&1" | at now + 5 min
+
+# If the list is empty, check if the service is still available.
+else
+
+        #=================================================
+        # Check if the service is still available
+        #=================================================
+	
+	# If it's an official CI
+        if test -e "$script_dir/auto_build/auto.conf"
+        then
+                domain=$(grep ^DOMAIN= "$script_dir/auto_build/auto.conf" | cut --delimiter='=' --fields=2)
+                ci_path=$(grep ^CI_PATH= "$script_dir/auto_build/auto.conf" | cut --delimiter='=' --fields=2)
+                CI_service=$(grep ^CI_SERVICE= "$script_dir/auto_build/auto.conf" | cut --delimiter='=' --fields=2)
+                CI_service=${CI_service:-yunorunner}
+
+                # Try to resolv the domain 10 times maximum.
+                for i in `seq 1 10`; do
+                        curl_exit_code=$(curl --location --insecure --silent --write-out "%{http_code}\n" https://$domain/$ci_path --output /dev/null)
+                        if [ "${curl_exit_code:0:1}" = "0" ] || [ "${curl_exit_code:0:1}" = "4" ] || [ "${curl_exit_code:0:1}" = "5" ]
+                        then
+                                # If the http code is a 0xx 4xx or 5xx, it's an error code.
+                                service_broken=1
+                                sleep 1
+                        else
+                                service_broken=0
+                                break
+                        fi
+                done
+                if [ $service_broken -eq 1 ]
+                then
+                        date
+                        echo "The CI seems to be down..."
+                        echo "Try to restart the CI"
+                        systemctl restart $CI_service
+                fi
+        fi
 fi
