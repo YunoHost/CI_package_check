@@ -18,7 +18,7 @@ SETUP_JENKINS () {
 	ci_path=jenkins
 
 	echo -e "\e[1m> Installation de jenkins...\e[0m" | tee -a "$log_build"
-	sudo yunohost app install https://github.com/YunoHost-Apps/jenkins_ynh -a "domain=$domain&path=/$ci_path&is_public=1" | tee -a "$log_build"
+	sudo yunohost app install --force https://github.com/YunoHost-Apps/jenkins_ynh -a "domain=$domain&path=/$ci_path&is_public=1" | tee -a "$log_build"
 
 	# Réduit le nombre de tests simultanés à 1 sur jenkins
 	sudo sed -i "s/<numExecutors>.*</<numExecutors>1</" /var/lib/jenkins/config.xml
@@ -209,7 +209,9 @@ fi
 
 
 # Installation de ssh_chroot_dir
-sudo yunohost app install https://github.com/YunoHost-Apps/ssh_chroot_dir_ynh -a "ssh_user=base_user&password=""&pub_key=fake_key&size=1G" --verbose | tee -a "$log_build"
+sudo yunohost settings set security.password.admin.strength -v -1
+sudo yunohost settings set security.password.user.strength -v -1
+sudo yunohost app install --force https://github.com/YunoHost-Apps/ssh_chroot_dir_ynh -a "ssh_user=base_user&password=""&pub_key=fake_key&size=1G" | tee -a "$log_build"
 
 # Créer un lien symbolique pour un accès facile à chroot_manager
 ln -sf /home/yunohost.app/ssh_chroot_directories/chroot_manager ./chroot_manager
