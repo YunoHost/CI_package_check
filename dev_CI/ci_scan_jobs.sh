@@ -13,7 +13,7 @@ script_dir="$(dirname $(realpath $0))"
 ci_path=$(grep "CI_PATH=" "$script_dir/config.conf" | cut -d'=' -f2)
 domain=$(grep "DOMAIN=" "$script_dir/config.conf" | cut -d'=' -f2)
 jenkins_url=$domain/$ci_path
-jenkins_java_call="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -remoting -noCertificateCheck -s https://$jenkins_url/ -i $script_dir/jenkins/jenkins_key"
+jenkins_java_call="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -user ynhci -noCertificateCheck -s https://$jenkins_url/ -i $script_dir/jenkins/jenkins_key"
 base_jenkins_job="$script_dir/jenkins/jenkins_job"
 
 ssh_chroot_directory="/home/yunohost.app/ssh_chroot_directories"
