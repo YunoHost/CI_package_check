@@ -223,6 +223,8 @@ tests_results_json=${tests_results_json%,}
 # Extract app name, list name and arch from test_name
 app=$(echo "$test_name" | awk '{print $1}')
 list=$(echo "$test_name" | grep -q "Official" && echo "official" || echo "community")
+# If there no list in the app name, use apps.json
+list=${list:-apps}
 arch=$(echo "$test_name" | grep -q "~ARM~" && echo "arm" || echo "x86")
 
 # Build json line out of those infos
