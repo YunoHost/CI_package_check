@@ -13,6 +13,7 @@ script_dir="$(dirname $(realpath $0))"
 #=================================================
 
 jobs_directory="/home/yunohost.app/ssh_chroot_directories/Official/data"
+mkdir -p "$jobs_directory"
 ynh_list="$jobs_directory/ynh_list"
 current_jobs="$jobs_directory/current_jobs"
 
