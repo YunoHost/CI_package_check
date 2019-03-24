@@ -50,7 +50,7 @@ SETUP_JENKINS () {
 	ci_path=ci
 
 	echo_bold "> Installation of jenkins..."
-	sudo yunohost app install https://github.com/YunoHost-Apps/jenkins_ynh -a "domain=$domain&path=/$ci_path&is_public=1" | $tee_to_log
+	sudo yunohost app install --force https://github.com/YunoHost-Apps/jenkins_ynh -a "domain=$domain&path=/$ci_path&is_public=1" | $tee_to_log
 
 	# Keep 1 simultaneous test only
 	sudo sed -i "s/<numExecutors>.*</<numExecutors>1</" /var/lib/jenkins/config.xml | $tee_to_log
@@ -174,7 +174,7 @@ SETUP_YUNORUNNER () {
 	ci_path=ci
 
 	echo_bold "> Installation of YunoRunner..."
-	sudo yunohost app install https://github.com/YunoHost-Apps/yunorunner_ynh_core -a "domain=$domain&path=/$ci_path" | $tee_to_log
+	sudo yunohost app install --force https://github.com/YunoHost-Apps/yunorunner_ynh_core -a "domain=$domain&path=/$ci_path" | $tee_to_log
 
 	# Stop YunoRunner
 	sudo systemctl stop yunorunner | $tee_to_log
@@ -185,7 +185,7 @@ SETUP_YUNORUNNER () {
 	# Set the type of CI if needed.
 	if [ "$ci_type" = "Testing_Unstable" ]
 	then
-		sudo sed -i "s/^ExecStart.*/& -t testing-unstable/" /etc/systemd/system/yunorunner.service | $tee_to_log
+		sudo sed -i "s/^ExecStart.*/& --dont-monitor-git --no-monthly-jobs/" /etc/systemd/system/yunorunner.service | $tee_to_log
 	elif [ "$ci_type" = "ARM" ]
 	then
 		sudo sed -i "s/^ExecStart.*/& -t arm/" /etc/systemd/system/yunorunner.service | $tee_to_log
@@ -237,7 +237,7 @@ then
 		else
 			pass_arg=""
 		fi
-	sudo yunohost tools postinstall $domain_arg $pass_arg | $tee_to_log
+	sudo yunohost tools postinstall $domain_arg $pass_arg
 fi
 
 
