@@ -24,6 +24,8 @@ do
 			list=Official	# Application officielle
 		fi
 		app=${app%% ($list)*}
+		# Force the list to apps.json instead of Community or Official
+                list=apps
 		app_level=$(tac "$script_dir/../logs/$line" | grep "Level of this application: " -m1)	# Tac affiche le fichier depuis la fin, et grep limite la recherche au premier terme trouvé pour ne prendre que le dernier résultat.
 		if [ -n "$app_level" ]
 		then	# Si le log contient un niveau pour l'app
