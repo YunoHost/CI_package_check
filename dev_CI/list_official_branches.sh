@@ -66,7 +66,7 @@ do
 		if [ -n "$branch_dir" ]
 		then
 			# Keep only the branch name
-			branch="$(echo "$branch_dir}" | sed 's/.*_ynh PR[[:digit:]]*.//g')"
+			branch="$(echo "$branch_dir" | sed 's/.*_ynh PR[[:digit:]]*.//g')"
 			# If the branch isn't in the branches files. Remove it
 			if ! grep --quiet --extended-regexp " $branch$" "$app/branches"
 			then
