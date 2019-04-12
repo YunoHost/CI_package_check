@@ -23,24 +23,32 @@ current_jobs="$jobs_directory/current_jobs"
 sudo find "$jobs_directory" -maxdepth 1 -type d | tail -n+2 | sed "s@$jobs_directory/@@" > "$current_jobs"
 
 #=================================================
-# LIST APPS FROM OFFICIAL LIST
+# LIST HIGH QUALITY APPS
 #=================================================
 
-# Download the list from YunoHost github
-wget -nv https://raw.githubusercontent.com/YunoHost/apps/master/official.json -O "$jobs_directory/official.json"
+# Download the list from app.yunohost.org
+wget -nv https://app.yunohost.org/apps.json -O "$jobs_directory/apps.json"
 
 # Purge the list
 > "$ynh_list"
 
 # Parse each git repository
-while read repo
+while read appname
 do
-	# Get the name of the app
-	appname="$(basename --suffix=_ynh $repo)"
+	# Get the high_quality tag for this app
+	high_quality=$(jq ".$appname | .high_quality" "$jobs_directory/apps.json")
 
-	# Print the repo and the name of the job into the list
-	echo "$repo;${appname}" >> "$ynh_list"
-done <<< "$(grep '\"url\":' "$jobs_directory/official.json" | cut --delimiter='"' --fields=4)"
+	# Add the app to the list only if the tag high_quality is set
+	if [ "$high_quality" == "true" ]
+	then
+		# Get the repo for this app
+		repo=$(jq --raw-output ".$appname | .git.url" "$jobs_directory/apps.json")
+
+		# Print the repo and the name of the job into the list
+		echo "$repo;${appname}" >> "$ynh_list"
+	fi
+# List all apps from the list, by getting manifest ID.
+done <<< "$(jq --raw-output ".[] | .manifest.id" "$jobs_directory/apps.json")"
 
 #=================================================
 # REMOVE OLD APPS
