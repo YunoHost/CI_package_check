@@ -2,6 +2,9 @@
 
 # List all apps from official
 
+github_user=
+github_token=
+
 #=================================================
 # Grab the script directory
 #=================================================
@@ -24,26 +27,30 @@ current_jobs="$jobs_directory/current_jobs"
 sudo find "$jobs_directory" -maxdepth 1 -type d | tail -n+2 > "$current_jobs"
 
 #=================================================
-# LIST ALL BRANCHES FOR EACH OFFICIAL APPS
+# LIST ALL PULL REQUESTS FOR EACH OFFICIAL APPS
 #=================================================
 
 while read app
 do
         appname="$(basename $app)_ynh"
-        # List all branches
-        if [ ! -e "$app/$appname testing" ]
-        then
-                git clone --quiet "https://github.com/YunoHost-Apps/${appname}" "$app/$appname testing" > /dev/null
-                (cd "$app/$appname testing"
-                git checkout testing > /dev/null)
-        fi
-        (cd "$app/$appname testing"
-        git branch --remotes > "$app/branches")
 
-        # Then clean the list
-        sed -i '\|origin/HEAD*|d' "$app/branches"
-        sed -i '\|origin/master*|d' "$app/branches"
-        sed -i 's|  origin/||' "$app/branches"
+        # Purge the list of branches
+        > "$app/branches"
+
+        # List all Pull Request
+        # Get the json with all Pull request from github API.
+        curl -u $github_user:$github_token --silent --show-error https://api.github.com/repos/YunoHost-Apps/${appname}/pulls?state=open > "$script_dir/PR_extract.json"
+
+        max_PR=$(jq length "$script_dir/PR_extract.json")
+        for i in $(seq 0 $(( $max_PR - 1)) )
+        do
+            # Get the ID of this pull request
+            echo -n "$(jq --raw-output ".[$i] | .number" "$script_dir/PR_extract.json")  " >> "$app/branches"
+            # Get the repo for this pull request
+            echo -n "$(jq --raw-output ".[$i] | .head.repo.clone_url" "$script_dir/PR_extract.json")  " >> "$app/branches"
+            # Get the branch for this pull request
+            echo "$(jq --raw-output ".[$i] | .head.ref" "$script_dir/PR_extract.json")" >> "$app/branches"
+        done
 done < "$current_jobs"
 
 #=================================================
@@ -54,20 +61,24 @@ while read app
 do
 	# For each app, check each branches.
 	appname="$(basename $app)_ynh"
-	while <&4 read branch
+	while <&4 read branch_dir
 	do
-		branch="${branch##*_ynh }"
-		# If the branch isn't in the branches files. Remove it
-		if ! grep --quiet "$branch" "$app/branches"
+		if [ -n "$branch_dir" ]
 		then
-			echo "Remove the branch $branch for the app $appname"
-			sudo rm -r "$app/$appname $branch"
+			# Keep only the branch name
+			branch="$(echo "$branch_dir" | sed 's/.*_ynh PR[[:digit:]]*.//g')"
+			# If the branch isn't in the branches files. Remove it
+			if ! grep --quiet --extended-regexp " $branch$" "$app/branches"
+			then
+				echo "Remove the branch $branch for the app $appname"
+				sudo rm -r "$branch_dir"
+			fi
 		fi
 	done 4<<< "$(sudo find "$app" -maxdepth 1 -type d | tail -n+2)"
 done < "$current_jobs"
 
 #=================================================
-# UPDATE ALL BRANCHES
+# UPDATE ALL BRANCHES AND ADD NEW ONES
 #=================================================
 
 while read app
@@ -76,50 +87,31 @@ do
 	appname="$(basename $app)_ynh"
 	while <&4 read branch
 	do
-		branch_directory="$app/$appname $branch"
+		pr_id="$(echo "$branch" | awk '{print $1}')"
+		pr_repo="$(echo "$branch" | awk '{print $2}')"
+		pr_branch="$(echo "$branch" | awk '{print $3}')"
+
+		branch_directory="$app/$appname PR$pr_id.$pr_branch"
 		# If this branch already exist, update
 		if [ -e "$branch_directory" ]
 		then
-			echo "Update the branch $branch for the app $appname"
+			echo "Update the branch $pr_branch, PR$pr_id for the app $appname"
 			(cd "$branch_directory"
 			git pull)
-                        # If git return 1
-                        if [ $? -eq 1 ]
-                        then
-                                # Return code 1 is 'No such ref was fetched', so the branch doesn't exist anymore.
-                                echo "Remove the branch $branch for the app $appname"
-                                sudo rm -r "$app/$appname $branch"
-                        fi
+			# If git return 1
+			if [ $? -eq 1 ]
+			then
+				# Return code 1 is 'No such ref was fetched', so the branch doesn't exist anymore.
+				echo "Remove the branch $pr_branch, PR$pr_id for the app $appname"
+				sudo rm -r "$branch_directory"
+			fi
 
 		# Otherwise, create a new directory for this branch
 		else
-			# Get the repository for this app
-			repo=$(grep "$appname" "$ynh_list" | cut -d';' -f1)
-
-			echo "Add the new branch $branch for the app $appname"
-			git clone --quiet $repo "$branch_directory" > /dev/null
+			echo "Add the new branch $pr_branch, PR$pr_id for the app $appname"
+			git clone --quiet $pr_repo "$branch_directory" > /dev/null
 			(cd "$branch_directory"
-			git checkout "$branch" > /dev/null)
+			git checkout "$pr_branch" > /dev/null)
 		fi
 	done 4< "$app/branches"
-done < "$current_jobs"
-
-#=================================================
-
-#=================================================
-# BUILD LIST OF OFFICIAL FORKS
-#=================================================
-
-sudo find "$none_official_directory" -maxdepth 1 -type d | tail -n+2 > "$current_jobs"
-
-#=================================================
-# UPDATE ALL BRANCHES
-#=================================================
-
-while read app
-do
-        # For each forked repository, update the code
-        echo "Update the official fork $app"
-        (cd "$app"
-        git pull -a)
 done < "$current_jobs"

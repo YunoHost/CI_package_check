@@ -27,9 +27,6 @@ sudo find "$ssh_chroot_directory" -type d -name '*_ynh*' > "$ssh_chroot_director
 # Continue only if there a modification into the list of apps.
 if ! md5sum --check --status "$ssh_chroot_directory/current.md5"
 then
-	# Caculate the checksum of the list of apps
-	md5sum "$ssh_chroot_directory/current" > "$ssh_chroot_directory/current.md5"
-
 	#=================================================
 	# PRINT THE CURRENTS JENKINS JOBS
 	#=================================================
@@ -40,7 +37,7 @@ then
 	# CREATE A JOB FOR EACH NEW APP
 	#=================================================
 
-	while read app
+	while read <&3 app
 	do
 		# Get only the name of the app
 		app_name=$(basename "$app")
@@ -50,8 +47,14 @@ then
 		user_name="${user_name//data*/}"
 		# And remove the first and the last slash
 		user_name="${user_name:1:$((${#user_name}-2))}"
-		# Build the name of the job
-		job_name="$app_name ($user_name)"
+		# Keep only the PR number for Official jobs
+		if echo "$app_name" | grep --quiet -E ".*_ynh PR[[:digit:]]*\."
+		then
+			job_name="$(echo "$app_name" | sed 's/\(.*_ynh PR[[:digit:]]*\)..*/\1/')"
+		else
+			# Build the name of the job
+			job_name="$app_name ($user_name)"
+		fi
 
 		# Check if this job exist in the job_list
 		if ! grep --quiet "$job_name" "$ssh_chroot_directory/job_list"
@@ -70,5 +73,8 @@ then
 			$jenkins_java_call build "$job_name"
 
 		fi
-	done < "$ssh_chroot_directory/current"
+	done 3< "$ssh_chroot_directory/current"
+
+	# Caculate the checksum of the list of apps
+	md5sum "$ssh_chroot_directory/current" > "$ssh_chroot_directory/current.md5"
 fi
