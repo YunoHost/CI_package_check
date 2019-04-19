@@ -22,6 +22,8 @@ do
 			list=Community	# Application communautaire
 		elif echo "$app" | grep -q " (Official)"; then
 			list=Official	# Application officielle
+		else
+			list=Apps
 		fi
 		app=${app%% ($list)*}
 		# Force the list to apps.json instead of Community or Official
@@ -31,7 +33,7 @@ do
 		then	# Si le log contient un niveau pour l'app
 			app_level="${app_level##*: }"
 			app_level=$(echo "$app_level" | cut -d' ' -f1)
-			./change_level.py ${list,,}.json "$app" "$app_level"	# Appel le script change_level.py pour modifier le niveau de l'app dans la liste. ${list,,} permet de passer la variable en minuscule
+			./change_level.py apps.json "$app" "$app_level"	# Appel le script change_level.py pour modifier le niveau de l'app dans la liste.
 		fi
 	fi
 done <<< "$(ls -1 "$script_dir/../logs")"

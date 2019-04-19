@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# List all apps from official and community list
+# List all apps from apps list
 # And build a job
 
 #=================================================
@@ -273,12 +273,7 @@ PARSE_LIST () {
 	wget -nv https://raw.githubusercontent.com/YunoHost/apps/master/$list.json -O "$script_dir/$list.json"
 
 	# Build the grep command. To list only the git repository of each app on the json file
-	if [ "$list" = "official" ]
-	then
-		grep_cmd="grep '\\\"url\\\":' \"$script_dir/$list.json\" | cut --delimiter='\"' --fields=4"
-	else
-		grep_cmd="grep '\\\"state\\\": \\\"working\\\"' \"$script_dir/$list.json\" -A1 | grep '\\\"url\\\":' | cut --delimiter='\"' --fields=4"
-	fi
+	grep_cmd="grep '\\\"state\\\": \\\"working\\\"' \"$script_dir/$list.json\" -A1 | grep '\\\"url\\\":' | cut --delimiter='\"' --fields=4"
 
 	# Purge the list
 	> "$ynh_list"
@@ -379,21 +374,19 @@ message_file="$script_dir/job_send"
 # Type of CI
 ci_type="$(grep CI_TYPE "$script_dir/auto.conf" | cut -d '=' -f2)"
 
-# Work on the official list, then community list
-for list in official community
-do
-	# Build a list of all jobs currently in the CI
-	BUILD_LIST
+# Work on the apps list
+list=apps
+# Build a list of all jobs currently in the CI
+BUILD_LIST
 
-	# Build the list of YunoHost apps from the official lists of apps
-	PARSE_LIST
+# Build the list of YunoHost apps from the official lists of apps
+PARSE_LIST
 
-	# Remove the jobs that not anymore in the YunoHost list
-	CLEAR_JOB
+# Remove the jobs that not anymore in the YunoHost list
+CLEAR_JOB
 
-	# Add the jobs that not in the current jobs
-	ADD_JOB
-done
+# Add the jobs that not in the current jobs
+ADD_JOB
 
 #=================================================
 # Notify on xmpp apps room
