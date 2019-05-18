@@ -44,6 +44,7 @@ app_level=$(echo "$app_level" | cut -d' ' -f1)
 # Each type have its own list
 list_file="$script_dir/list_level_$type"
 
+crash_counter_file="$script_dir/crash_counter"
 if [ -z "$app_level" ]
 then
 	if grep --quiet "^$test_name:" "$list_file"
@@ -57,7 +58,6 @@ then
 		if [ -z "$max_crash" ]; then
 			max_crash=10
 		fi
-		crash_counter_file="$script_dir/crash_counter"
 		if [ ! -e "$crash_counter_file" ]
 		then
 			crash_counter=1
