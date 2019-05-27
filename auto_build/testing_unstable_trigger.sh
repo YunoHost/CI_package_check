@@ -3,6 +3,8 @@
 # Get the path of this script
 script_dir="$(dirname $(realpath $0))"
 
+date
+
 check_update_file () {
 	if [ -e "$version_file" ]
 	then
@@ -46,7 +48,7 @@ start_jobs () {
 		if [ "$list_filter" == "HQ" ]
 		then
 			# Get the high_quality tag for this app
-			high_quality=$(jq ".$app | .high_quality" "$script_dir/apps.json")
+                        high_quality=$(jq ".${app%% *} | .high_quality" "$script_dir/apps.json")
 
 			# Ignore the app if the tag high_quality isn't set
 			if [ "$high_quality" != "true" ]
@@ -54,6 +56,7 @@ start_jobs () {
 				continue
 			fi
 		fi
+                echo "> Start a test for $app"
                 ( cd "$yunorunner_path"; ve3/bin/python ciclic add "$app" "$repo" )
         done <<< $( cd "$yunorunner_path"; ve3/bin/python ciclic app-list)
 }
