@@ -90,9 +90,9 @@ fi
 
 if [ -n "$app_level" ]
 then
-	cp "$script_dir/badges/level${app_level}.svg" "$script_dir/../logs/$test_name.svg"
+	cp "$script_dir/badges/level${app_level}.svg" "$script_dir/../logs/${test_name// (~ARM~)/}.svg"
 else
-	cp "$script_dir/badges/unknown.svg" "$script_dir/../logs/$test_name.svg"
+	cp "$script_dir/badges/unknown.svg" "$script_dir/../logs/${test_name// (~ARM~)/}.svg"
 fi
 
 #=================================================
