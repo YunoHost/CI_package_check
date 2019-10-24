@@ -26,6 +26,18 @@ repo="$1"
 test_name="$2"
 
 #=================================================
+# Define on abort behavior
+#=================================================
+
+on_abort () {
+	# Force stop ci
+	. $script_dir/force_stop.sh
+}
+
+# Catch SIGKILL
+trap on_abort SIGKILL
+
+#=================================================
 # Delay the beginning of this script, to prevent concurrent executions
 #=================================================
 
