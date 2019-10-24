@@ -34,8 +34,8 @@ on_abort () {
 	. $script_dir/force_stop.sh
 }
 
-# Catch SIGKILL
-trap on_abort SIGKILL
+# Catch SIGTERM
+trap on_abort SIGTERM
 
 #=================================================
 # Delay the beginning of this script, to prevent concurrent executions
