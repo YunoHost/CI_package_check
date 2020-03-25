@@ -43,7 +43,7 @@ done < "$ssh_chroot_directory/job_list"
 # REMOVE THE JOBS FOR APPS WHICH DOESN'T EXIST
 #=================================================
 
-while read app
+while read <&3 app
 do
 	# Get the directory for this job in the list
 	directory="$(grep -m1 "$app" "$ssh_chroot_directory/list_job_dir" | cut -d':' -f2)"
@@ -55,7 +55,7 @@ do
 		# And remove the job in the list
 		sed --in-place "/^$app:/d" "$ssh_chroot_directory/list_job_dir"
 	fi
-done < "$ssh_chroot_directory/job_list"
+done 3< "$ssh_chroot_directory/job_list"
 
 #=================================================
 # UPDATE THE LIST OF CURRENT DIRECTORIES
