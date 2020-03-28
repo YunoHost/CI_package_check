@@ -204,6 +204,10 @@ SETUP_YUNORUNNER () {
 
 	# Put YunoRunner as the default app on the root of the domain
 	sudo yunohost app makedefault -d "$domain" yunorunner | $tee_to_log
+
+	# Add an access to badges in the nginx config
+    sudo sed -i "s@^}$@\n\tlocation /$ci_path/badges {\n\t\talias $(dirname "$script_dir")/badges/;\n\t\tautoindex on;\n\t}\n}@" /etc/nginx/conf.d/$domain.d/yunorunner.conf
+	sudo systemctl reload nginx
 }
 # SPECIFIC PART FOR YUNORUNNER (END)
 

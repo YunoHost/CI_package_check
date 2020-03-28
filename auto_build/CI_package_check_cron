@@ -4,3 +4,6 @@
 
 # Modifie le niveau des applications, après le rapport hebdomadaire.
 #Stable only#5 20 * * 5 root "__PATH__/update_level_apps.sh" >> "__PATH__/update_level_apps.log" 2>&1
+
+# Update the badges for apps.
+#Stable only#0 0 * * * root "__PATH__/update_badges.sh" >> "__PATH__/update_badges.log" 2>&1
