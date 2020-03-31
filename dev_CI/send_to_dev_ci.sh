@@ -1,8 +1,6 @@
 #!/bin/bash
 
-# Récupère le dossier du script
-script_dir="$(dirname $(realpath $0))"
-
+folder="$1"
 ssh_user=USER_NAME
 ssh_host=ci-apps-dev.yunohost.org
 ssh_port=22
@@ -10,21 +8,23 @@ ssh_key=~/.ssh/PRIVATE_KEY
 distant_dir=/data
 SSHSOCKET=~/.ssh/ssh-socket-%r-%h-%p
 
-ENVOI_CI () {
-	echo ">>> Copie de $1"
-	rsync -avzhuE -c --progress --delete --exclude="/.git/" "$1" -e "ssh -i $ssh_key -p $ssh_port -o ControlPath=$SSHSOCKET"  $ssh_user@$ssh_host:"$distant_dir/"
-}
+if [[ -z "$folder" ]]
+then
+    echo "Usage: ./send_to_dev_ci.sh appfolder_ynh/"
+fi
 
-echo -en "\a"
-echo "Connection ssh initiale"
+echo "Opening connection"
 ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key -f -M -N -o ControlPath=$SSHSOCKET	# Créé une connection ssh maître.
 if [ "$?" -ne 0 ]; then	# Si l'utilisateur tarde trop, la connexion sera refusée...
 	ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key -f -M -N -o ControlPath=$SSHSOCKET	# Créé une connection ssh maître.
 fi
 
-ENVOI_CI APP1
-ENVOI_CI APP2
-ENVOI_CI APP3...
+rsync -avzhuE -c --progress --delete --exclude="/.git/" "$folder" -e "ssh -i $ssh_key -p $ssh_port -o ControlPath=$SSHSOCKET"  $ssh_user@$ssh_host:"$distant_dir/"
 
-echo "Fermeture de la connection ssh maître."
+echo "Closing connection"
 ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key -S $SSHSOCKET -O exit
+
+echo "============================"
+echo "Build should show up here once it starts:"
+echo "https://$ssh_host/jenkins/view/$ssh_user/job/$folder%20($ssh_user)/lastBuild/console"
+
