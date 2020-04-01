@@ -34,6 +34,7 @@ SEND_TO_CI () {
 
 echo "Opening connection"
 ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key -f -M -N -o ControlPath=$SSHSOCKET
+if [ "$?" -ne 0 ]
 then
     # If the user wait too long, the connection will fail.
     # Same player try again
