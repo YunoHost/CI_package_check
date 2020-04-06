@@ -548,15 +548,11 @@ then
 
 	echo -n "The complete log for this application was duplicated and is accessible at " >> "$cli_log"
 
-	# If it's the official CI
-	if test -e "$script_dir/auto_build/auto.conf"
+	ci_url=$(grep ^CI_URL= "$script_dir/config" | cut --delimiter='=' --fields=2)
+	if [ -n "$ci_url" ]
 	then
-		domain=$(grep ^DOMAIN= "$script_dir/auto_build/auto.conf" | cut --delimiter='=' --fields=2)
-		ci_path=$(grep ^CI_PATH= "$script_dir/auto_build/auto.conf" | cut --delimiter='=' --fields=2)
 		# Print a url to access this log
-		echo "https://$domain/$ci_path/logs/$complete_app_log" >> "$cli_log"
-
-	# Else, it's simply a CI instance
+		echo "https://$ci_url/logs/$complete_app_log" >> "$cli_log"
 	else
 		# Print simply the path for this log
 		echo "$script_dir/logs/$complete_app_log" >> "$cli_log"
