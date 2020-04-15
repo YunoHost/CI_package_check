@@ -67,6 +67,7 @@ then
 		fi
 		if [ $crash_counter -ge $max_crash ]
 		then
+			echo "Crash of CI detected at $(date)"
 			# Get the mail the config file
 			dest=$(cat "$script_dir/auto.conf" | grep MAIL_DEST= | cut -d '=' -f2)
 			# Send an alert by email

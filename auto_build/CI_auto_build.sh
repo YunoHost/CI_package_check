@@ -251,7 +251,7 @@ if [ -z "$domain" ]; then
 fi
 
 # Fill out /etc/hosts with the domain name
-echo "127.0.0.1 $domain	#CI_APP" | sudo tee -a /etc/hosts
+echo -e "\n127.0.0.1 $domain	#CI_APP" | sudo tee -a /etc/hosts
 
 
 if [ -n "$yuno_pwd" ]; then
