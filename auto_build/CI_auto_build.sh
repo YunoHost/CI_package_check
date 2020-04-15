@@ -405,6 +405,10 @@ if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Stable" ]
 then
 	sudo sed -i "s@#Stable only#@@g" "/etc/cron.d/CI_package_check" | $tee_to_log
 fi
+if [ "$ci_type" == "ARM" ]
+then
+	sudo sed -i "s@#ARM only#@@g" "/etc/cron.d/CI_package_check" | $tee_to_log
+fi
 
 echo_bold "Set the XMPP bot"
 sudo apt-get install python-xmpp | $tee_to_log

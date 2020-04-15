@@ -7,3 +7,6 @@
 
 # Update the badges for apps.
 #Stable only#0 0 * * * root "__PATH__/update_badges.sh" >> "__PATH__/update_badges.log" 2>&1
+
+# Check the Rpi every day.
+#ARM only#0 1 * * * root "__PATH__/raspi_check.sh" > /dev/null 2>&1
