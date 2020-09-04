@@ -40,7 +40,7 @@ JENKINS_BUILD_JOB () {
 			cp "${base_jenkins_job}_arch.xml" "${base_jenkins_job}_load.xml"
 		fi
 
-	# If it's not the stable type of test or a stretch test
+	# If it's not the stable type of test or a buster test
 	elif [ "$type_test" != "stable" ] || [ "$ci_type" = "Next_debian" ]
 	then
 		# Use the nostable job squeleton
@@ -59,7 +59,7 @@ JENKINS_BUILD_JOB () {
 	# Put the job name, without its architecture (arch only)
 	sed --in-place "s@__PARENT_NAME__@$(echo "$job_name" | sed "s@ .~.*~.@@")@g" "${base_jenkins_job}_load.xml"
 
-	# Replace the type of test (Testing, unstable or stretch only)
+	# Replace the type of test (Testing, unstable or buster only)
 	if [ "$ci_type" = "Next_debian" ]
 	then
 		sed --in-place "s@__TYPE__@$ci_type@g" "${base_jenkins_job}_load.xml"

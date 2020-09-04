@@ -36,8 +36,8 @@ then
 	if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" 2> /dev/null = "Next_debian" ]
 	then
 		cp "$script_dir/package_check/config.modele" "$script_dir/package_check/config"
-		sed -i "s@DISTRIB=.*@DISTRIB=stretch@g" "$script_dir/package_check/config"
-		sed -i "s@BRANCH=.*@BRANCH=stretch@g" "$script_dir/package_check/config"
+		sed -i "s@DISTRIB=.*@DISTRIB=buster@g" "$script_dir/package_check/config"
+		sed -i "s@BRANCH=.*@BRANCH=buster@g" "$script_dir/package_check/config"
 	fi
 
 	sudo "$script_dir/package_check/sub_scripts/lxc_build.sh"
