@@ -185,7 +185,7 @@ SETUP_YUNORUNNER () {
 	# Set the type of CI if needed.
 	if [ "$ci_type" = "Testing_Unstable" ]
 	then
-		sudo sed -i "s/^ExecStart.*/& --dont-monitor-git --no-monthly-jobs/" /etc/systemd/system/yunorunner.service | $tee_to_log
+		sudo sed -i "s/^ExecStart.*/& -t testing-unstable/" /etc/systemd/system/yunorunner.service | $tee_to_log
 	elif [ "$ci_type" = "ARM" ]
 	then
 		sudo sed -i "s/^ExecStart.*/& -t arm/" /etc/systemd/system/yunorunner.service | $tee_to_log
