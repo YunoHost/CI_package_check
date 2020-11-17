@@ -94,16 +94,17 @@ echo "/proc/uptime $chroot_dir/proc/uptime none bind" | sudo tee -a /etc/fstab
 sudo mount $chroot_dir/proc/loadavg
 sudo mount $chroot_dir/proc/uptime
 
-cp_which () {
-	sudo cp -aH `which $1` $chroot_dir/bin/$1
-}
-locate_and_cp () {
-	local path_of_file=$(locate $1 | head -n1)
-	sudo cp -aH $path_of_file $chroot_dir/lib/
+cp_which_with_libs () {
+	sudo cp -aH "$(which $1)" $chroot_dir/bin/$1
+	for i in $(ldd "$(which $1)" | grep -o '/[^[:space:]]*'); do
+			echo $i
+			sudo mkdir -p $chroot_dir"$(dirname $i)";
+			sudo cp -aH $i $chroot_dir$i
+	done
 }
 
 echo -e "\e[1m> Copie les fichiers ld-linux, selon l'arch.\e[0m"
-sudo cp -v /lib/ld-linux.so.2 $chroot_dir/lib/
+sudo cp -v /lib/ld-linux.so.3 $chroot_dir/lib/
 sudo cp -v /lib64/ld-linux-x86-64.so.2 $chroot_dir/lib64/
 sudo cp -v /lib/ld-linux-armhf.so.3 $chroot_dir/lib/
 
@@ -111,98 +112,12 @@ echo -e "\e[1m> Met à jour la bdd de locate.\e[0m"
 sudo updatedb
 
 echo -e "\e[1m> Copie chaque exécutable nécessaire à analyseCI.sh, ainsi que ses dépendances.\e[0m"
-echo -e "\e[1m> bash.\e[0m"
 # Pour connaître les dépendances: ldd `which EXE`
-cp_which bash
-locate_and_cp linux-vdso.so.1
-locate_and_cp libncurses.so.5
-locate_and_cp libtinfo.so.5
-locate_and_cp libtinfo.so.6
-locate_and_cp libdl.so.2
-locate_and_cp libc.so.6
-echo -e "\e[1m> cat.\e[0m"
-cp_which cat
-locate_and_cp linux-vdso.so.1
-locate_and_cp libc.so.6
-echo -e "\e[1m> cut.\e[0m"
-cp_which cut
-locate_and_cp linux-vdso.so.1
-locate_and_cp libc.so.6
-echo -e "\e[1m> date.\e[0m"
-cp_which date
-locate_and_cp linux-vdso.so.1
-locate_and_cp libc.so.6
-echo -e "\e[1m> dirname.\e[0m"
-cp_which dirname
-locate_and_cp linux-vdso.so.1
-locate_and_cp libc.so.6
-# echo
-echo -e "\e[1m> head.\e[0m"
-cp_which head
-locate_and_cp linux-vdso.so.1
-locate_and_cp libc.so.6
-echo -e "\e[1m> grep.\e[0m"
-cp_which grep
-locate_and_cp linux-vdso.so.1
-locate_and_cp libpcre.so.3
-locate_and_cp libdl.so.2
-locate_and_cp libc.so.6
-locate_and_cp libpthread.so.0
-echo -e "\e[1m> uptime.\e[0m"
-cp_which uptime
-locate_and_cp linux-vdso.so.1
-locate_and_cp libprocps.so.3
-locate_and_cp libprocps.so.6
-locate_and_cp libprocps.so.7
-locate_and_cp libdl.so.2
-locate_and_cp libc.so.6
-locate_and_cp libsystemd.so.0
-locate_and_cp librt.so.1
-locate_and_cp liblzma.so.5
-locate_and_cp liblz4.so.1
-locate_and_cp libgcrypt.so.20
-locate_and_cp libpthread.so.0
-locate_and_cp libgcc_s.so.1
-locate_and_cp libgpg-error.so.0
-echo -e "\e[1m> rsync.\e[0m"
-cp_which rsync
-locate_and_cp linux-vdso.so.1
-locate_and_cp libarmmem.so
-locate_and_cp libattr.so.1
-locate_and_cp libacl.so.1
-locate_and_cp libpopt.so.0
-locate_and_cp libc.so.6
-echo -e "\e[1m> sed.\e[0m"
-cp_which sed
-locate_and_cp linux-vdso.so.1
-locate_and_cp libacl.so.1
-locate_and_cp libselinux.so.1
-locate_and_cp libc.so.6
-locate_and_cp libattr.so.1
-locate_and_cp libpcre.so.3
-locate_and_cp libdl.so.2
-locate_and_cp libpthread.so.0
-echo -e "\e[1m> sleep.\e[0m"
-cp_which sleep
-locate_and_cp linux-vdso.so.1
-locate_and_cp libc.so.6
-echo -e "\e[1m> tail.\e[0m"
-cp_which tail
-locate_and_cp linux-vdso.so.1
-locate_and_cp libc.so.6
-# test
-echo -e "\e[1m> tr.\e[0m"
-cp_which tr
-locate_and_cp linux-vdso.so.1
-locate_and_cp libc.so.6
-echo -e "\e[1m> true.\e[0m"
-cp_which true
-locate_and_cp linux-vdso.so.1
-locate_and_cp libc.so.6
-echo -e "\e[1m> wc.\e[0m"
-cp_which wc
-locate_and_cp linux-vdso.so.1
-locate_and_cp libc.so.6
+for b in "bash" "cat" "cut" "date" "dirname" "head" "grep" "uptime" "rsync" "sed" "sleep" "tail" "tr" "true" "wc"
+do
+	echo -e "\e[1m> $b.\e[0m"
+	cp_which_with_libs $b
+done
 
 sudo git clone https://github.com/YunoHost/CI_package_check "$chroot_dir/CI_package_check"
 
