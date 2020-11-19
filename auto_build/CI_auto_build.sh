@@ -427,7 +427,7 @@ sudo rm -f "$script_dir/../CI.lock" | $tee_to_log
 # Disable list_app_ynh.sh for YunoRunner which doesn't need it.
 if [ "$ci_user" == "yunorunner" ]
 then
-	sudo sed -i "s.*list_app_ynh.sh.*@#&@g" "/etc/cron.d/CI_package_check" | $tee_to_log
+	sudo sed -i "s@.*list_app_ynh.sh.*@#&@g" "/etc/cron.d/CI_package_check" | $tee_to_log
 else
 	# Create jobs with list_app_ynh.sh
 	if [ "$ci_type" != "ARM" ]
