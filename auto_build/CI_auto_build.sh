@@ -176,37 +176,40 @@ SETUP_YUNORUNNER () {
 	echo_bold "> Installation of YunoRunner..."
 	sudo yunohost app install --force https://github.com/YunoHost-Apps/yunorunner_ynh_core -a "domain=$domain&path=/$ci_path" | $tee_to_log
 
+	# Get the app ID of the last yunorunner installed
+	app_id=$(ls /var/log/yunohost/categories/operation/*app_install*.yml | grep yunorunner | sort | tail -n1 | xargs cat | grep YNH_APP_INSTANCE_NAME | awk 'NF {last=$NF} END {print last}')
+
 	# Stop YunoRunner
-	sudo systemctl stop yunorunner | $tee_to_log
+	sudo systemctl stop $app_id | $tee_to_log
 
 	echo_bold "> Configure the path of CI_package_check..."
-	sudo sed --in-place "s@/home/CI_package_check/analyseCI.sh@$script_dir/../analyseCI.sh@g" /etc/systemd/system/yunorunner.service | $tee_to_log
+	sudo sed --in-place "s@/home/CI_package_check/analyseCI.sh@$script_dir/../analyseCI.sh@g" /etc/systemd/system/$app_id.service | $tee_to_log
 
 	# Set the type of CI if needed.
 	if [ "$ci_type" = "Testing_Unstable" ]
 	then
-		sudo sed -i "s/^ExecStart.*/& -t testing-unstable/" /etc/systemd/system/yunorunner.service | $tee_to_log
+		sudo sed -i "s/^ExecStart.*/& -t testing-unstable/" /etc/systemd/system/$app_id.service | $tee_to_log
 	elif [ "$ci_type" = "ARM" ]
 	then
-		sudo sed -i "s/^ExecStart.*/& -t arm/" /etc/systemd/system/yunorunner.service | $tee_to_log
+		sudo sed -i "s/^ExecStart.*/& -t arm/" /etc/systemd/system/$app_id.service | $tee_to_log
 	fi
 
 	# Remove the original database, in order to rebuilt it with the new config.
-	sudo rm /var/www/yunorunner/db.sqlite
+	sudo rm /var/www/$app_id/db.sqlite
 
 	# Create a random token for ciclic
-	cat /dev/urandom | tr -dc _A-Za-z0-9 | head -c${1:-80} | sudo tee /var/www/yunorunner/token /var/www/yunorunner/tokens
+	cat /dev/urandom | tr -dc _A-Za-z0-9 | head -c${1:-80} | sudo tee /var/www/$app_id/token /var/www/$app_id/tokens
 
 	# Reboot YunoRunner to consider the configuration
 	echo_bold "> Reboot YunoRunner..."
 	sudo systemctl daemon-reload
-	sudo systemctl restart yunorunner | $tee_to_log
+	sudo systemctl restart $app_id | $tee_to_log
 
 	# Put YunoRunner as the default app on the root of the domain
-	sudo yunohost app makedefault -d "$domain" yunorunner | $tee_to_log
+	sudo yunohost app makedefault -d "$domain" $app_id | $tee_to_log
 
 	# Add an access to badges in the nginx config
-    sudo sed -i "s@^}$@\n\tlocation /$ci_path/badges {\n\t\talias $(dirname "$script_dir")/badges/;\n\t\tautoindex on;\n\t}\n}@" /etc/nginx/conf.d/$domain.d/yunorunner.conf
+    sudo sed -i "s@^}\$@\n\tlocation /$ci_path/badges {\n\t\talias $(dirname "$script_dir")/badges/;\n\t\tautoindex on;\n\t}\n}@" /etc/nginx/conf.d/$domain.d/$app_id.conf
 	sudo systemctl reload nginx
 }
 # SPECIFIC PART FOR YUNORUNNER (END)
@@ -316,6 +319,9 @@ echo_bold "Installation of Package check with its CI script"
 touch "$script_dir/../CI.lock" | $tee_to_log
 touch "$script_dir/../package_check/pcheck.lock" | $tee_to_log
 
+# Copy the default cron file
+cat "$script_dir/CI_package_check_cron" "$script_dir/CI_package_check_cron_new"
+
 # Move the snapshot and replace it by a symbolic link
 # The symbolic link will allow to switch between Stable, Testing and Unstable container.
 # We need it even for Stable only, because the CI script works with the symbolic link.
@@ -362,7 +368,7 @@ then
 			else
 				cron_hour=5
 			fi
-			echo | sudo tee -a "/etc/cron.d/CI_package_check" <<EOF | $tee_to_log
+			echo | sudo tee -a "$script_dir/CI_package_check_cron_new" <<EOF | $tee_to_log
 
 ## $change_version
 # Vérifie les mises à jour du conteneur.
@@ -372,7 +378,7 @@ EOF
 			mkdir "$script_dir/../logs/logs_$change_version" | $tee_to_log
 		done
 		# Add another cron for triggering the upgrade of the container testing and unstable
-		echo | sudo tee -a "/etc/cron.d/CI_package_check" <<EOF | $tee_to_log
+		echo | sudo tee -a "$script_dir/CI_package_check_cron_new" <<EOF | $tee_to_log
 
 # Trig tests in case of upgrade of containers testing and unstable
 30 6 * * * root "$script_dir/testing_unstable_trigger.sh" >> "$script_dir/testing_unstable_trigger.log" 2>&1
@@ -391,23 +397,18 @@ fi
 if [ "$ci_type" != "ARM" ]
 then
 	echo_bold "Change the cron for upgrade"
-	sudo sed -i "s@package_check/sub_scripts/auto_upgrade.sh.*@auto_build/auto_upgrade_container.sh\" stable@g" "/etc/cron.d/CI_package_check" | $tee_to_log
+	sudo sed -i "s@package_check/sub_scripts/auto_upgrade.sh.*@auto_build/auto_upgrade_container.sh\" stable@g" "$script_dir/CI_package_check_cron_new" | $tee_to_log
 fi
 
-
-# Add cron for update the app list, and to modify the level of apps.
-echo_bold "Add cron tasks"
-# Simply add CI_package_check_cron at the end of the current cron.
-cat "$script_dir/CI_package_check_cron" | sudo tee -a "/etc/cron.d/CI_package_check" > /dev/null
 # Then set the path
-sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check" | $tee_to_log
+sudo sed -i "s@__PATH__@$script_dir@g" "$script_dir/CI_package_check_cron_new" | $tee_to_log
 if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Stable" ]
 then
-	sudo sed -i "s@#Stable only#@@g" "/etc/cron.d/CI_package_check" | $tee_to_log
+	sudo sed -i "s@#Stable only#@@g" "$script_dir/CI_package_check_cron_new" | $tee_to_log
 fi
 if [ "$ci_type" == "ARM" ]
 then
-	sudo sed -i "s@#ARM only#@@g" "/etc/cron.d/CI_package_check" | $tee_to_log
+	sudo sed -i "s@#ARM only#@@g" "$script_dir/CI_package_check_cron_new" | $tee_to_log
 fi
 
 echo_bold "Set the XMPP bot"
@@ -427,7 +428,7 @@ sudo rm -f "$script_dir/../CI.lock" | $tee_to_log
 # Disable list_app_ynh.sh for YunoRunner which doesn't need it.
 if [ "$ci_user" == "yunorunner" ]
 then
-	sudo sed -i "s@.*list_app_ynh.sh.*@#&@g" "/etc/cron.d/CI_package_check" | $tee_to_log
+	sudo sed -i "s@.*list_app_ynh.sh.*@#&@g" "$script_dir/CI_package_check_cron_new" | $tee_to_log
 else
 	# Create jobs with list_app_ynh.sh
 	if [ "$ci_type" != "ARM" ]
@@ -442,6 +443,12 @@ Finally, you can run $script_dir/list_app_ynh.sh to add new jobs."
 	fi
 fi
 
+# Add cron for update the app list, and to modify the level of apps.
+echo_bold "Add cron tasks"
+echo "######################### $ci_type #########################" | sudo tee -a "/etc/cron.d/CI_package_check"
+# Simply add CI_package_check_cron at the end of the current cron.
+cat "$script_dir/CI_package_check_cron_new" | sudo tee -a "/etc/cron.d/CI_package_check" > /dev/null
+rm "$script_dir/CI_package_check_cron_new"
 # Download the badges to put in logs
 $script_dir/badges/get_badges.sh
 
