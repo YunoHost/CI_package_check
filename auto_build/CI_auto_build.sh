@@ -6,6 +6,8 @@
 # Get the path of this script
 script_dir="$(dirname $(realpath $0))"
 
+script_dir_name="$(basename $(realpath $script_dir/../))"
+
 log_build_auto_ci="$script_dir/Log_build_auto_ci.log"
 tee_to_log="tee -a $log_build_auto_ci 2>&1"
 default_ci_user=ynhci
@@ -320,7 +322,7 @@ touch "$script_dir/../CI.lock" | $tee_to_log
 touch "$script_dir/../package_check/pcheck.lock" | $tee_to_log
 
 # Copy the default cron file
-cat "$script_dir/CI_package_check_cron" "$script_dir/CI_package_check_cron_new"
+cat "$script_dir/CI_package_check_cron" >> "$script_dir/CI_package_check_cron_new"
 
 # Move the snapshot and replace it by a symbolic link
 # The symbolic link will allow to switch between Stable, Testing and Unstable container.
@@ -445,9 +447,8 @@ fi
 
 # Add cron for update the app list, and to modify the level of apps.
 echo_bold "Add cron tasks"
-echo "######################### $ci_type #########################" | sudo tee -a "/etc/cron.d/CI_package_check"
 # Simply add CI_package_check_cron at the end of the current cron.
-cat "$script_dir/CI_package_check_cron_new" | sudo tee -a "/etc/cron.d/CI_package_check" > /dev/null
+cat "$script_dir/CI_package_check_cron_new" | sudo tee -a "/etc/cron.d/$script_dir_name" > /dev/null
 rm "$script_dir/CI_package_check_cron_new"
 # Download the badges to put in logs
 $script_dir/badges/get_badges.sh

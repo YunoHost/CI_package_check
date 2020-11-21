@@ -5,6 +5,8 @@
 # Get the path of this script
 script_dir="$(dirname $(realpath $0))"
 
+script_dir_name="$(basename $script_dir)"
+
 ci_frontend=jenkins
 
 
@@ -46,8 +48,8 @@ else
 fi
 
 # Set the cron file
-sudo cp "$script_dir/CI_package_check_cron" /etc/cron.d/CI_package_check
-sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check"
+sudo cp "$script_dir/CI_package_check_cron" /etc/cron.d/$script_dir_name
+sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/$script_dir_name"
 
 # Build a config file
 cp "$script_dir/config.modele" "$script_dir/config"

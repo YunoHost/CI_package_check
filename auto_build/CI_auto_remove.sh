@@ -6,6 +6,8 @@
 # Get the path of this script
 script_dir="$(dirname $(realpath $0))"
 
+script_dir_name="$(basename $(realpath $script_dir/../))"
+
 # SPECIFIC PART FOR JENKINS (START)
 REMOVE_JENKINS () {
 	echo -e "\e[1mDeletion of jenkins\e[0m"
@@ -43,7 +45,7 @@ touch "$script_dir/community_app"
 touch "$script_dir/official_app"
 
 echo -e "\e[1mRemove the cron file\e[0m"
-sudo rm /etc/cron.d/CI_package_check
+sudo rm /etc/cron.d/$script_dir_name
 
 echo -e "\e[1mRemove the lock files\e[0m"
 sudo rm "$script_dir/../package_check/pcheck.lock"
