@@ -24,7 +24,8 @@ REMOVE_JENKINS () {
 # SPECIFIC PART FOR YUNORUNNER (START)
 REMOVE_YUNORUNNER () {
 	echo -e "\e[1mDeletion of YunoRunner\e[0m"
-	sudo yunohost app remove yunorunner
+	app_id="cat $script_dir/../yunorunner_id"
+	sudo yunohost app remove $app_id
 }
 # SPECIFIC PART FOR YUNORUNNER (END)
 

@@ -213,6 +213,8 @@ SETUP_YUNORUNNER () {
 	# Add an access to badges in the nginx config
     sudo sed -i "s@^}\$@\n\tlocation /$ci_path/badges {\n\t\talias $(dirname "$script_dir")/badges/;\n\t\tautoindex on;\n\t}\n}@" /etc/nginx/conf.d/$domain.d/$app_id.conf
 	sudo systemctl reload nginx
+
+	echo $app_id > $script_dir/../yunorunner_id
 }
 # SPECIFIC PART FOR YUNORUNNER (END)
 
