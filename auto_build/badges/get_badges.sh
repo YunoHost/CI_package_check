@@ -12,6 +12,7 @@ wget -nv https://img.shields.io/badge/Integration-Level_5-green.svg -O "$script_
 wget -nv https://img.shields.io/badge/Integration-Level_6-green.svg -O "$script_dir/level6.svg"
 wget -nv https://img.shields.io/badge/Integration-Level_7-brightgreen.svg -O "$script_dir/level7.svg"
 wget -nv https://img.shields.io/badge/Integration-Level_8-blue.svg -O "$script_dir/level8.svg"
+wget -nv https://img.shields.io/badge/Integration-Level_9-blue.svg -O "$script_dir/level9.svg"
 wget -nv https://img.shields.io/badge/Integration-Unknown-lightgrey.svg -O "$script_dir/unknown.svg"
 
 wget -nv https://img.shields.io/badge/Status-Maintained-brightgreen.svg -O "$script_dir/maintained.svg"
