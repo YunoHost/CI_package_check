@@ -18,7 +18,7 @@ check_update_file () {
 }
 
 # Check update for testing
-version_file="$script_dir/../package_check/sub_scripts/ynh_version_testing"
+version_file="$script_dir/../package_check/ynh_version_testing"
 md5_file="$script_dir/md5_version_testing"
 testing_upgrade=0
 if ! check_update_file; then
@@ -28,7 +28,7 @@ fi
 md5sum "$version_file" > "$md5_file"
 
 # Check update for unstable
-version_file="$script_dir/../package_check/sub_scripts/ynh_version_unstable"
+version_file="$script_dir/../package_check/ynh_version_unstable"
 md5_file="$script_dir/md5_version_unstable"
 unstable_upgrade=0
 if ! check_update_file; then

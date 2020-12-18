@@ -21,7 +21,7 @@ fi
 #=================================================
 
 # Name of the container
-lxc_name=$(grep LXC_NAME= "$script_dir/../package_check/config" | cut --delimiter='=' --fields=2)
+#lxc_name=$(grep LXC_NAME= "$script_dir/../package_check/config" | cut --delimiter='=' --fields=2)
 # Type of test, stable, testing or unstable
 type=$1
 
@@ -29,16 +29,22 @@ type=$1
 # Switch the snapshot
 #=================================================
 
+#
+# FIXME ... to be replaced with something that tweaks that override the LXC_BASE
+# in 'config' file for package_check to use the stable/testing/unstable
+# LXC_BASE..
+# 
+
 # If the main snapshot is a symbolic link, it's the official CI instance
-if [ -h /var/lib/lxcsnaps/$lxc_name ]
-then
-	# Check if the symbolic link is already good.
-	if ! sudo ls -l /var/lib/lxcsnaps/pchecker_lxc | grep --quiet "_$type"
-	then
-		echo "> Changement de conteneur vers $type"
-		# Remove the previous symbolic link
-		sudo rm /var/lib/lxcsnaps/$lxc_name
-		# And recreate it with a another linked snapshot
-		sudo ln --symbolic --force /var/lib/lxcsnaps/pcheck_$type /var/lib/lxcsnaps/$lxc_name
-	fi
-fi
+#if [ -h /var/lib/lxcsnaps/$lxc_name ]
+#then
+#	# Check if the symbolic link is already good.
+#	if ! sudo ls -l /var/lib/lxcsnaps/pchecker_lxc | grep --quiet "_$type"
+#	then
+#		echo "> Changement de conteneur vers $type"
+#		# Remove the previous symbolic link
+#		sudo rm /var/lib/lxcsnaps/$lxc_name
+#		# And recreate it with a another linked snapshot
+#		sudo ln --symbolic --force /var/lib/lxcsnaps/pcheck_$type /var/lib/lxcsnaps/$lxc_name
+#	fi
+#fi

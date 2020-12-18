@@ -27,8 +27,9 @@ do	# La boucle vérifie 3 fois que le serveur est inactif
 		idleCI=0	# Si la work_list n'est pas vide, arrêt annulé.
 	fi
 
+    # FIXME
 	LXC_NAME=$(cat "$script_dir/../package_check/config" | grep LXC_NAME= | cut -d '=' -f2)
-	if [ $(sudo lxc-info --name $LXC_NAME | grep -c "STOPPED") -eq 0 ]; then
+	if [ $(sudo lxc info $LXC_NAME | grep -c "STOPPED") -eq 0 ]; then
 		echo "Conteneur en cours d'exécution"
 		idleCI=0	# Si le conteneur n'est pas stoppé, arrêt annulé.
 	fi

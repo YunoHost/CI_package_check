@@ -17,7 +17,9 @@ echo Finish > "$lock_pcheckCI"
 sudo sed --in-place "/$id/d" "$script_dir/work_list"
 
 # Stop package_check, the container and its network
-sudo "$script_dir/package_check/sub_scripts/lxc_force_stop.sh"
+#source "$script_dir/package_check/lib/common.sh"
+# FIXME ... fetch the LXC_NAME and run `lxc stop $LXC_NAME --timeout 15` or
+# something similar..
 
 # Wait for the cleaning of the lock file. That means analyseCI.sh finished on its side.
 starttime=$(date +%s)

@@ -2,10 +2,8 @@
 */5 * * * * root "__PATH__/pcheckCI.sh" >> "__PATH__/pcheckCI.log" 2>&1
 
 # Vérifie les mises à jour du conteneur, à 4h chaque nuit.
+# FIXME
 0 4 * * * root "__PATH__/package_check/sub_scripts/auto_upgrade.sh" >> "__PATH__/package_check/upgrade.log" 2>&1
-
-# Envoi un rapport hebdomadaire, tout les vendredi à 20h. Bon weekend de taff en perspective ;)
-0 20 * * 5 root "__PATH__/rapportCI.sh"
 
 # Vérifie les mises à jour des scripts de CI, à 3h chaque nuit.
 0 3 * * * root "__PATH__/auto_upgrade.sh" >> "__PATH__/auto_upgrade.log" 2>&1

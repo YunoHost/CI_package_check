@@ -32,7 +32,7 @@ CI_url="https://$(grep DOMAIN= "$script_dir/auto.conf" | cut --delimiter='=' --f
 #=================================================
 
 # Find the line which contain the level
-app_level="$(tac "$script_dir/../logs/$app_log" | grep "Level of this application: " --max-count=1)"
+app_level="$(tac "$script_dir/../logs/$app_log" | grep "Global level for this application: " --max-count=1)"
 # And keep only the level
 app_level="${app_level##*: }"
 app_level=$(echo "$app_level" | cut -d' ' -f1)
@@ -158,48 +158,51 @@ tests_results=(? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ?)
 if [ -z "$app_level" ]; then
 	app_level="?"
 else
-	# Find the detailled results of this test
-	while read detailled_level
-	do
-		# Remove the 4 first characters, which are only a color indication
-		detailled_level="${detailled_level:4}"
-		case "${detailled_level%%:*}" in
-			"age linter" ) index=0 ;;
-			"Installation" ) index=1 ;;
-			"Deleting" ) index=2 ;;
-			"Installation in a sub path" ) index=3 ;;
-			"Deleting from a sub path" ) index=4 ;;
-			"Installation on the root" ) index=5 ;;
-			"Deleting from root" ) index=6 ;;
-			"Upgrade" ) index=7 ;;
-			"Installation in private mode" ) index=8 ;;
-			"Installation in public mode" ) index=9 ;;
-			"Multi-instance installations" ) index=10 ;;
-			"Malformed path" ) index=11 ;;
-			"Port already used" ) index=12 ;;
-			"Backup" ) index=13 ;;
-			"Restore" ) index=14 ;;
-			"Change URL" ) index=15 ;;
-			*) index=-1 ;;
-		esac
-
-		if [ $index -ge 0 ]
-		then
-			if echo "$detailled_level" | grep --quiet "SUCCESS"; then
-				# Can be a success only if there no failure on this test before.
-				if [ "${tests_results[$index]}" != "0" ]; then
-					tests_results[$index]=1
-				fi
-			elif echo "$detailled_level" | grep --quiet "FAIL"; then
-				tests_results[$index]=0
-			else
-				if [ "${tests_results[$index]}" == "?" ]; then
-					# Result unknow if there no success or fail before.
-					tests_results[$index]="-"
-				fi
-			fi
-		fi
-	done <<< "$(tac "$script_dir/../logs/$app_log" | grep "Level of this application: " --after-context=20)"
+#
+# FIXME / use or parse the new output format
+#
+#	# Find the detailled results of this test
+#	while read detailled_level
+#	do
+#		# Remove the 4 first characters, which are only a color indication
+#		detailled_level="${detailled_level:4}"
+#		case "${detailled_level%%:*}" in
+#			"age linter" ) index=0 ;;
+#			"Installation" ) index=1 ;;
+#			"Deleting" ) index=2 ;;
+#			"Installation in a sub path" ) index=3 ;;
+#			"Deleting from a sub path" ) index=4 ;;
+#			"Installation on the root" ) index=5 ;;
+#			"Deleting from root" ) index=6 ;;
+#			"Upgrade" ) index=7 ;;
+#			"Installation in private mode" ) index=8 ;;
+#			"Installation in public mode" ) index=9 ;;
+#			"Multi-instance installations" ) index=10 ;;
+#			"Malformed path" ) index=11 ;;
+#			"Port already used" ) index=12 ;;
+#			"Backup" ) index=13 ;;
+#			"Restore" ) index=14 ;;
+#			"Change URL" ) index=15 ;;
+#			*) index=-1 ;;
+#		esac
+#
+#		if [ $index -ge 0 ]
+#		then
+#			if echo "$detailled_level" | grep --quiet "SUCCESS"; then
+#				# Can be a success only if there no failure on this test before.
+#				if [ "${tests_results[$index]}" != "0" ]; then
+#					tests_results[$index]=1
+#				fi
+#			elif echo "$detailled_level" | grep --quiet "FAIL"; then
+#				tests_results[$index]=0
+#			else
+#				if [ "${tests_results[$index]}" == "?" ]; then
+#					# Result unknow if there no success or fail before.
+#					tests_results[$index]="-"
+#				fi
+#			fi
+#		fi
+#	done <<< "$(tac "$script_dir/../logs/$app_log" | grep "Global level for this application: " --after-context=20)"
 fi
 
 # Each type have its own list
@@ -214,22 +217,22 @@ sed --in-place "/\"$test_name\",/d" "$public_list_file.json"
 echo "$test_name;level=$app_level;success=$success;detailled_success=${tests_results[@]};date=$(date) ($(date +%s))" >> "$public_list_file"
 
 # Rebuild the array for the (fucking ?) json format
-for i in ${tests_results[*]}
-do
-	tests_results_json="$tests_results_json \"$i\","
-done
-# Remove the last comma
-tests_results_json=${tests_results_json%,}
+# FIXME
+#for i in ${tests_results[*]}
+#do
+#	tests_results_json="$tests_results_json \"$i\","
+#done
+## Remove the last comma
+#tests_results_json=${tests_results_json%,}
 
 # Extract app name, list name and arch from test_name
-app=$(echo "$test_name" | awk '{print $1}')
-list=$(echo "$test_name" | grep -q "Official" && echo "official" || echo "community")
-# If there no list in the app name, use apps.json
-list=${list:-apps}
-arch=$(echo "$test_name" | grep -q "~ARM~" && echo "arm" || echo "x86")
+#app=$(echo "$test_name" | awk '{print $1}')
+#list="apps"
+#arch=$(echo "$test_name" | grep -q "~ARM~" && echo "arm" || echo "x86")
 
 # Build json line out of those infos
-echo "{ \"test_name\": \"$test_name\", \"app\": \"$app\", \"list\": \"$list\", \"arch\": \"$arch\", \"branch\": \"$type\", \"level\": $app_level, \"success\": $success, \"detailled_success\": [$tests_results_json ], \"timestamp\": $(date +%s) }," >> "$public_list_file.json"
+# FIXME
+#echo "{ \"test_name\": \"$test_name\", \"app\": \"$app\", \"list\": \"$list\", \"arch\": \"$arch\", \"branch\": \"$type\", \"level\": $app_level, \"success\": $success, \"detailled_success\": [$tests_results_json ], \"timestamp\": $(date +%s) }," >> "$public_list_file.json"
 
 #=================================================
 # For testing and unstable, compare with stable

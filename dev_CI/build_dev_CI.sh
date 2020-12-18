@@ -136,18 +136,6 @@ echo -e "\e[1mMise en place de Package check à l'aide des scripts d'intégratio
 "$script_dir/../build_CI.sh"
 
 
-# ALERT
-if [ $scaleway -eq 1 ]
-then
-	# With scaleway, there an issue with the dns.
-	# So, change the dns
-	sudo sed -i "s@dns=.*@dns=208.67.222.222@g" "$script_dir/../package_check/config"
-	# Then rebuild the container
-	"$script_dir/../package_check/sub_scripts/lxc_build.sh"
-fi
-# ALERT
-
-
 # Met en place les locks pour éviter des démarrages intempestifs durant le build
 touch "$script_dir/../CI.lock"
 touch "$script_dir/../package_check/pcheck.lock"

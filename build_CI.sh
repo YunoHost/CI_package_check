@@ -33,14 +33,17 @@ then
 	rm -R "$script_dir/package_check_clone"
 
 	# Configure Package check to use another debian version
-	if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" 2> /dev/null = "Next_debian" ]
-	then
-		cp "$script_dir/package_check/config.modele" "$script_dir/package_check/config"
-		sed -i "s@DISTRIB=.*@DISTRIB=buster@g" "$script_dir/package_check/config"
-		sed -i "s@BRANCH=.*@BRANCH=buster@g" "$script_dir/package_check/config"
-	fi
+	#if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" 2> /dev/null = "Next_debian" ]
+	#then
+    #    FIXME ... this won't work anymore because there's no config.modele
+    #    anymore ... though one could directly 'echo 'FOO=bar' into the config
+    #    file to override default settings'
+    #		cp "$script_dir/package_check/config.modele" "$script_dir/package_check/config"
+    #		sed -i "s@DISTRIB=.*@DISTRIB=buster@g" "$script_dir/package_check/config"
+    #		sed -i "s@BRANCH=.*@BRANCH=buster@g" "$script_dir/package_check/config"
+    #fi
 
-	sudo "$script_dir/package_check/sub_scripts/lxc_build.sh"
+	sudo "$script_dir/package_check/build_base_lxc.sh"
 else
 	mkdir "$script_dir/package_check"
 fi

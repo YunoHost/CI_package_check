@@ -16,8 +16,8 @@ then
 	then
 		echo -e "\e[1m> Supprime le chroot pour l'utilisateur $user_ssh.\e[0m"
 
-		echo -e "\e[1m> Supprime CI_package_check.\e[0m"
-		sudo "$chroot_dir/CI_package_check/remove_CI.sh"
+		#echo -e "\e[1m> Supprime CI_package_check.\e[0m"
+		#sudo "$chroot_dir/CI_package_check/remove_CI.sh"
 
 		echo -e "\e[1m> Supprime l'utilisateur $user_ssh.\e[0m"
 		sudo userdel --remove $user_ssh

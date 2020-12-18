@@ -26,7 +26,7 @@ touch "$script_dir/../CI.lock"	# Replace le lock le temps de la mise à jour.
 sudo "$script_dir/switch_container.sh" $type >> "$script_dir/../package_check/upgrade_$type.log" 2>&1
 
 # Copie les précédents numéros de version, pour éviter un débordement des autres conteneurs.
-sudo cat "$script_dir/../package_check/sub_scripts/ynh_version_$type" > "$script_dir/../package_check/sub_scripts/ynh_version"
+sudo cat "$script_dir/../package_check/ynh_version_$type" > "$script_dir/../package_check/ynh_version"
 
 # Démarre la mise à jour du conteneur.
 sudo "$script_dir/../package_check/sub_scripts/auto_upgrade.sh" >> "$script_dir/../package_check/upgrade_$type.log" 2>&1
@@ -34,9 +34,9 @@ sudo "$script_dir/../package_check/sub_scripts/auto_upgrade.sh" >> "$script_dir/
 # Copie les numéros de version
 if [ "$ci_type" = "Next_debian" ]
 then
-	sudo cp "$script_dir/../package_check/sub_scripts/ynh_version" "$script_dir/../package_check/sub_scripts/ynh_version_$ci_type"
+	sudo cp "$script_dir/../package_check/ynh_version" "$script_dir/../package_check/ynh_version_$ci_type"
 else
-	sudo cp "$script_dir/../package_check/sub_scripts/ynh_version" "$script_dir/../package_check/sub_scripts/ynh_version_$type"
+	sudo cp "$script_dir/../package_check/ynh_version" "$script_dir/../package_check/ynh_version_$type"
 fi
 
 

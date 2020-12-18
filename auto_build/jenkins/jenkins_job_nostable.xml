@@ -30,7 +30,7 @@
 */30 * * * *</spec>
 			<fileInfo>
 				<org.jenkinsci.plugins.fstrigger.triggers.FileNameTriggerInfo>
-					<filePathPattern>__PATH__/package_check/sub_scripts/ynh_version___TYPE__</filePathPattern>
+					<filePathPattern>__PATH__/package_check/ynh_version___TYPE__</filePathPattern>
 					<strategy>LATEST</strategy>
 					<inspectingContentFile>true</inspectingContentFile>
 					<doNotCheckLastModificationDate>true</doNotCheckLastModificationDate>
