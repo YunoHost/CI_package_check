@@ -1,12 +1,3 @@
 
 # Vérifie chaque nuit les listes d'applications de Yunohost pour mettre à jour les jobs. À 4h10, après la maj du conteneur.
 10 4 * * * root "__PATH__/list_app_ynh.sh" >> "__PATH__/update_lists.log" 2>&1
-
-# Modifie le niveau des applications, après le rapport hebdomadaire.
-#Stable only#5 20 * * 5 root "__PATH__/update_level_apps.sh" >> "__PATH__/update_level_apps.log" 2>&1
-
-# Update the badges for apps.
-#Stable only#0 0 * * * root "__PATH__/update_badges.sh" >> "__PATH__/update_badges.log" 2>&1
-
-# Check the Rpi every day.
-#ARM only#0 1 * * * root "__PATH__/raspi_check.sh" > /dev/null 2>&1

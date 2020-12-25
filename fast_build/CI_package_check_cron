@@ -1,2 +1,0 @@
-# Vérifie toutes les 30 minutes l'activité du serveur. Et le stoppe si il ne fait rien.
-*/30 * * * * root "__PATH__/auto_shutdown.sh" > "__PATH__/shutdown.log" 2>&1

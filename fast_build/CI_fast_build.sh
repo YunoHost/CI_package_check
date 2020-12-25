@@ -62,21 +62,10 @@ fi
 
 echo "127.0.0.1 $DOMAIN	#CI_APP" | sudo tee -a /etc/hosts	# Renseigne le domain dans le host
 
-if [ -n "$YUNO_PWD" ]; then
-        pass_arg="--admin-password $YUNO_PWD"
-else
-        pass_arg=""
-fi
-
-if ! sudo yunohost user list --output-as json $pass_arg | grep -q "\"username\": \"$CI_USER\""	# Vérifie si l'utilisateur existe
+if ! sudo yunohost user list --output-as json | grep -q "\"username\": \"$CI_USER\""	# Vérifie si l'utilisateur existe
 then
-	if [ -n "$YUNO_PWD" ]; then
-		pass_arg="--password $YUNO_PWD --admin-password $YUNO_PWD"
-	else
-		pass_arg=""
-	fi
 	echo -e "\e[1m> Création d'un utilisateur YunoHost\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
-	sudo yunohost user create --firstname "$CI_USER" --mail "$CI_USER@$DOMAIN" --lastname "$CI_USER" "$CI_USER" $pass_arg
+	sudo yunohost user create --firstname "$CI_USER" --mail "$CI_USER@$DOMAIN" --lastname "$CI_USER" "$CI_USER" --password $YUNO_PWD
 fi
 
 # Installation du logiciel de CI qui servira d'interface
@@ -92,11 +81,6 @@ location /$CI_PATH/logs {
    autoindex on;
 }
 EOF
-
-# Met en place le cron pour arrêter la machine en cas d'inactivité
-echo -e "\e[1mAjout de la tâche cron pour l'arrêt auto\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
-cat "$script_dir/CI_package_check_cron" | sudo tee -a "/etc/cron.d/CI_package_check" > /dev/null	# Ajoute le cron à la suite du cron de CI déjà en place.
-sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check"	# Renseigne l'emplacement du script dans le cron
 
 echo -e "\e[1mVérification des droits d'accès\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
 if sudo su -l $CI -c "ls \"$script_dir\"" > /dev/null 2<&1

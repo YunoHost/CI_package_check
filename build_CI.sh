@@ -7,7 +7,6 @@ script_dir="$(dirname $(realpath $0))"
 
 ci_frontend=jenkins
 
-
 # Install git and at
 sudo apt-get update > /dev/null
 sudo apt-get install -y git at
@@ -23,30 +22,7 @@ chmod 666 "$script_dir/work_list"
 mkdir -p "$script_dir/logs"
 
 # Install Package check if it isn't an ARM only CI.
-if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" 2> /dev/null != "ARM" ]
-then
-	git clone https://github.com/YunoHost/package_check "$script_dir/package_check_clone"
-	echo -e "\e[1mBuild the LXC container for Package check\e[0m"
-	# Get over the limitation of git clone that can't clone in a non empty directory...
-	mkdir -p "$script_dir/package_check"
-	cp -R "$script_dir/package_check_clone/." "$script_dir/package_check"
-	rm -R "$script_dir/package_check_clone"
-
-	# Configure Package check to use another debian version
-	#if [ "$(grep CI_TYPE "$script_dir/auto_build/auto.conf" | cut -d '=' -f2)" 2> /dev/null = "Next_debian" ]
-	#then
-    #    FIXME ... this won't work anymore because there's no config.modele
-    #    anymore ... though one could directly 'echo 'FOO=bar' into the config
-    #    file to override default settings'
-    #		cp "$script_dir/package_check/config.modele" "$script_dir/package_check/config"
-    #		sed -i "s@DISTRIB=.*@DISTRIB=buster@g" "$script_dir/package_check/config"
-    #		sed -i "s@BRANCH=.*@BRANCH=buster@g" "$script_dir/package_check/config"
-    #fi
-
-	sudo "$script_dir/package_check/build_base_lxc.sh"
-else
-	mkdir "$script_dir/package_check"
-fi
+git clone https://github.com/YunoHost/package_check "$script_dir/package_check"
 
 # Set the cron file
 sudo cp "$script_dir/CI_package_check_cron" /etc/cron.d/CI_package_check

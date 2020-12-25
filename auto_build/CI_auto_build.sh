@@ -231,17 +231,7 @@ then
 	cd /tmp/install_script; sudo ./install_yunohost -a | $tee_to_log
 
 	echo_bold "> YunoHost post install"
-	if [ -n "$domain" ]; then
-		domain_arg="--domain $domain"
-	else
-		domain_arg=""
-	fi
-		if [ -n "$yuno_pwd" ]; then
-			pass_arg="--password $yuno_pwd"
-		else
-			pass_arg=""
-		fi
-	sudo yunohost tools postinstall $domain_arg $pass_arg
+	sudo yunohost tools postinstall --domain $domain --password $yuno_pwd
 fi
 
 
@@ -254,22 +244,11 @@ fi
 echo -e "\n127.0.0.1 $domain	#CI_APP" | sudo tee -a /etc/hosts
 
 
-if [ -n "$yuno_pwd" ]; then
-	pass_arg="--admin-password $yuno_pwd"
-else
-	pass_arg=""
-fi
-
 # Check if the user already exist
 if ! sudo yunohost user list --output-as json $pass_arg | grep -q "\"username\": \"$default_ci_user\""
 then
-	if [ -n "$yuno_pwd" ]; then
-		pass_arg="--password $yuno_pwd --admin-password $yuno_pwd"
-	else
-		pass_arg=""
-	fi
 	echo_bold "> Create a YunoHost user"
-	sudo yunohost user create --firstname "$default_ci_user" --mail "$default_ci_user@$domain" --lastname "$default_ci_user" "$default_ci_user" $pass_arg
+	sudo yunohost user create --firstname "$default_ci_user" --mail "$default_ci_user@$domain" --lastname "$default_ci_user" "$default_ci_user" --password $yuno_pwd
 fi
 
 
@@ -316,106 +295,14 @@ echo_bold "Installation of Package check with its CI script"
 touch "$script_dir/../CI.lock" | $tee_to_log
 touch "$script_dir/../package_check/pcheck.lock" | $tee_to_log
 
-#
-# FIXME ... to be replaced with something that tweaks that override the LXC_BASE
-# in 'config' file for package_check to use the stable/testing/unstable
-# LXC_BASE..
-# 
-
-# Move the snapshot and replace it by a symbolic link
-# The symbolic link will allow to switch between Stable, Testing and Unstable container.
-# We need it even for Stable only, because the CI script works with the symbolic link.
-#if [ "$ci_type" != "ARM" ]
-#then
-#	echo_bold "Replace the snapshot by a symbolic link"
-#	lxc_name=$(grep LXC_NAME= "$script_dir/../package_check/config" | cut -d '=' -f2)
-#	sudo mv /var/lib/lxcsnaps/$lxc_name /var/lib/lxcsnaps/pcheck_stable | $tee_to_log
-#	sudo ln -s /var/lib/lxcsnaps/pcheck_stable /var/lib/lxcsnaps/$lxc_name | $tee_to_log
-#
-#	# Create testing and unstable containers
-#	# We will not create any new containers, but only duplicate the main snapshot, then modify it to create a testing and a unstable snapshot.
-#	# Then, to work, the CI will only change the snapshot pointed by the symbolic link.
-#	if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Testing_Unstable" ]
-#	then
-#		for change_version in testing unstable
-#		do
-#			# Add a new directory for the snapshot
-#			sudo mkdir /var/lib/lxcsnaps/pcheck_$change_version | $tee_to_log
-#
-#			echo_bold "> Copy the stable snapshot to create a snapshot for $change_version"
-#			sudo cp -a /var/lib/lxcsnaps/pcheck_stable/snap0 /var/lib/lxcsnaps/pcheck_$change_version/snap0 | $tee_to_log
-#
-#			echo_bold "> Configure repositories for $change_version"
-#			if [ $change_version == testing ]; then
-#				source="testing"
-#			else
-#				source="testing unstable"
-#			fi
-#			sudo echo "deb http://forge.yunohost.org/debian/ buster stable $source" | sudo tee /var/lib/lxcsnaps/pcheck_$change_version/snap0/rootfs/etc/apt/sources.list.d/yunohost.list >> "$log_build_auto_ci" 2>&1
-#
-#			# Remove lock files to allow upgrade
-#			sudo rm -f "$script_dir/../package_check/pcheck.lock" "$script_dir/../CI.lock" | $tee_to_log
-#
-#			echo_bold "> Upgrade the container $change_version"
-#			sudo "$script_dir/auto_upgrade_container.sh" $change_version | $tee_to_log
-#
-#			# Put back the lock files
-#			touch "$script_dir/../CI.lock" "$script_dir/../package_check/pcheck.lock" | $tee_to_log
-#
-#			echo_bold "> Add an upgrade task in the cron for $change_version"
-#			if [ "$change_version" == testing ]; then
-#				cron_hour=4
-#			else
-#				cron_hour=5
-#			fi
-#			echo | sudo tee -a "/etc/cron.d/CI_package_check" <<EOF | $tee_to_log
-#
-### $change_version
-## Vérifie les mises à jour du conteneur.
-#30 $cron_hour * * * root "$script_dir/auto_upgrade_container.sh" $change_version
-#EOF
-#			# Create a directory for the logs
-#			mkdir "$script_dir/../logs/logs_$change_version" | $tee_to_log
-#		done
-#		# Add another cron for triggering the upgrade of the container testing and unstable
-#		echo | sudo tee -a "/etc/cron.d/CI_package_check" <<EOF | $tee_to_log
-#
-## Trig tests in case of upgrade of containers testing and unstable
-#30 6 * * * root "$script_dir/testing_unstable_trigger.sh" >> "$script_dir/testing_unstable_trigger.log" 2>&1
-#EOF
-#	fi
-#
-#	# Remove the stable container for a Testing_Unstable CI.
-#	if [ "$ci_type" = "Testing_Unstable" ]
-#	then
-#		sudo rm -r /var/lib/lxcsnaps/pcheck_stable
-#	fi
-#fi
-#
-#
-# Change the cron to use auto_upgrade_container instead of auto_upgrade.sh
-#if [ "$ci_type" != "ARM" ]
-#then
-#	echo_bold "Change the cron for upgrade"
-#    # FIXME What the actual fuck ...
-#	sudo sed -i "s@package_check/sub_scripts/auto_upgrade.sh.*@auto_build/auto_upgrade_container.sh\" stable@g" "/etc/cron.d/CI_package_check" | $tee_to_log
-#fi
-
-
 # Add cron for update the app list, and to modify the level of apps.
 echo_bold "Add cron tasks"
 # Simply add CI_package_check_cron at the end of the current cron.
-cat "$script_dir/CI_package_check_cron" | sudo tee -a "/etc/cron.d/CI_package_check" > /dev/null
+cp "$script_dir/CI_package_check_cron" "/etc/cron.d/CI_package_check"
 # Then set the path
 sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check" | $tee_to_log
-if [ "$ci_type" = "Mixed_content" ] || [ "$ci_type" = "Stable" ]
-then
-	sudo sed -i "s@#Stable only#@@g" "/etc/cron.d/CI_package_check" | $tee_to_log
-fi
-if [ "$ci_type" == "ARM" ]
-then
-	sudo sed -i "s@#ARM only#@@g" "/etc/cron.d/CI_package_check" | $tee_to_log
-fi
+
+
 
 echo_bold "Set the XMPP bot"
 sudo apt-get install python-xmpp | $tee_to_log

@@ -129,59 +129,32 @@ check_analyseCI () {
 }
 
 #=================================================
-# Start a test through SSH
+# Exec package check according to the architecture
 #=================================================
 
-get_timeout_over_ssh () {
-	# Infinite loop
-	while true
-	do
-		sleep 300
-		local ssh_date=$(ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key \
-			"cat \"$pcheckci_path/CI.lock\"") 2> /dev/null
-		# If the ssh mark is not here, break the loop.
-		if [ ! -e "$ssh_mark" ]; then
-			# That means this test is over.
-			break
-		fi
-		# Update CI.lock with the last content of distant lock_pcheckCI
-		lock_update_date "$ssh_date"
-	done
-}
+EXEC_PCHECK () {
 
-PCHECK_SSH () {
-	echo "Start a test on $ssh_host for $architecture architecture"
-	echo "Initialize an ssh connection"
+	# Check the asked architecture
+    local arch=""
+	if [ "$architecture" = "~x86-64b~" ]
+	then
+		arch="amd64"
+	elif [ "$architecture" = "~x86-32b~" ]
+	then
+		arch="i386"
+	elif [ "$architecture" = "~ARM~" ]
+	then
+		arch="armhf"
+	fi
 
-	ssh_mark="$script_dir/ssh_running"
-	touch "$ssh_mark"
-
-	get_timeout_over_ssh &
-	# Make a call to analyseCI.sh through ssh
-	ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key \
-		"\"$pcheckci_path/analyseCI.sh\" \"$repo\" \"$test_name\""
-	rm -f "$ssh_mark"
-
-	# Copy the complete log from the distant machine
-	rsync --rsh="ssh -p $ssh_port -i $ssh_key" \
-		$ssh_user@$ssh_host:"$pcheckci_path/package_check/Complete.log" \
-		"$script_dir/logs/$complete_app_log"
-}
-
-#=================================================
-# Start a test with the local instance of package check
-#=================================================
-
-PCHECK_LOCAL () {
 	echo -n "Start a test"
-	if [ -n "$architecture" ]; then
+	if [ -n "$arch" ]; then
 		echo " for $architecture architecture"
 	fi
 
 	# Start package check and pass to background
 	# Use nice to reduce the priority of processes during the test.
-	nice --adjustment=10 "$script_dir/package_check/package_check.sh" "$repo" &
-
+	ARCH="$arch" YNH_BRANCH="$ynh_branch" nice --adjustment=10 "$script_dir/package_check/package_check.sh" "$repo" &
 
 	# Get the pid of package check
 	package_check_pid=$!
@@ -203,157 +176,6 @@ PCHECK_LOCAL () {
 
 	# Copy the complete log
 	cp "$script_dir/package_check/Complete.log" "$script_dir/logs/$complete_app_log"
-}
-
-#=================================================
-# Exec package check according to the architecture
-#=================================================
-
-EXEC_PCHECK () {
-	# Sort of load balancing to choose which instance will be used.
-	choose_a_instance () {
-		# As argument, take the list of all instance, one per line.
-		local list_instance="$@"
-
-		# Create an array to store the informations about each instance
-		local -a instances='()'
-		local max_weight=0
-		# Read each line of the argument, means each instance.
-		while read local line
-		do
-			# Remove '> ' at the beginning
-			line=${line#> }
-			# Keep only the number of this instance, like a id
-			local num="${line%%.*}"
-			# Grab the weight of this instance
-			local weight="${line##*=}"
-			# Add up the weights of each instance to have a total weight
-			max_weight=$(( max_weight + weight ))
-			# Add a new field to the array.
-			instances+=($num:$max_weight)
-		done <<< "$list_instance"
-
-		local max_instance=${#instances[@]}
-		# Find a random value between 1 and max_weight
-		local find_instance=$(( ( RANDOM % $max_weight ) +1 ))
-
-		# With this random value, find the associate instance, depending of the weight of each one.
-		for i in `seq 0 $(( max_instance - 1))`
-		do
-			weight=$(echo ${instances[$i]} | cut -d: -f2)
-
-			if [ $find_instance -le $weight ]; then
-				# Return the number of this instance (Its ID)
-				echo $(echo ${instances[$i]} | cut -d: -f1)
-				return 0
-			fi
-		done
-	}
-
-	# Check the asked architecture
-	# And define a prefix to get the infos in the config file.
-	if [ "$architecture" = "~x86-64b~" ]
-	then
-		arch_pre=64
-	elif [ "$architecture" = "~x86-32b~" ]
-	then
-		arch_pre=32
-	elif [ "$architecture" = "~ARM~" ]
-	then
-		arch_pre=arm
-
-	# Or use the local instance if nothing is specified.
-	else
-		arch_pre=none
-	fi
-
-	get_info_in_config () {
-		echo "$(grep "^$1" "$script_dir/config" | cut --delimiter='=' --fields=2)"
-	}
-
-	# If an architecture is specified
-	if [ "$arch_pre" != "none" ]
-	then
-		# Get the instance type for this architecture (SSH or LOCAL)
-		instance=$(get_info_in_config "> $arch_pre.Instance=")
-	fi
-
-	# If a SSH instance type is asked
-	if [ "$instance" = "SSH" ]
-	then
-		# List all instance in the config file by filtering "> x.arch.weight"
-		list_instance=$(grep "^> .*$arch_pre.weight=" "$script_dir/config")
-		list_busy1_instance=""
-		use_busy=0
-
-		local ssh=0
-		while [ $ssh -eq 0 ]
-		do
-			remove_a_instance () {
-				list_instance="$(echo "$list_instance" | sed "/^> $CI_num./d")"
-				if [ -z "$list_instance" ]; then
-					echo "No ssh instances available..."
-					if [ -z "$list_busy1_instance" ]; then
-						# If there no instance previously put aside. Abort
-						ssh=1
-					else
-						# If there some busy instances, try to use them anyway
-						list_instance="$list_busy1_instance"
-						list_busy1_instance=""
-						use_busy=1
-					fi
-				fi
-			}
-
-			CI_num=$(choose_a_instance "$list_instance")
-
-			# Get all the informations for the connexion in the config file
-			ssh_host=$(get_info_in_config "> $CI_num.$arch_pre.ssh_host=")
-			ssh_user=$(get_info_in_config "> $CI_num.$arch_pre.ssh_user=")
-			ssh_key=$(get_info_in_config "> $CI_num.$arch_pre.ssh_key=")
-			pcheckci_path=$(get_info_in_config "> $CI_num.$arch_pre.pcheckci_path=")
-			ssh_port=$(get_info_in_config "> $CI_num.$arch_pre.ssh_port=")
-
-			# Try to connect first, and get the load average for this instance
-			local load=$(ssh $ssh_user@$ssh_host -p $ssh_port -i $ssh_key "uptime")
-			if [ "$?" -ne 0 ] || [ -z "$load" ]; then
-				echo "Failed to initiate an ssh connection on $ssh_host"
-				remove_a_instance
-			else
-				echo "Connection to $ssh_host successful"
-				# Check the load average for this instance
-				# Reduce the load average to the plain value of the first value (1 min)
-				load=$(echo "$load" | sed 's/.*average: //' | cut -d ',' -f 1 | cut -d '.' -f 1)
-				if [ $load -ge 2 ]; then
-					echo "This instance is too busy for now, we will not bother it for now."
-					remove_a_instance
-				elif [ $load -ge 1 ]; then
-					if [ $use_busy -eq 0 ]
-					then
-						echo "This instance is a little bit busy, let's see if we can find another one."
-						# Put this instance aside, just in case we can't find another one.
-						list_busy1_instance="$list_busy1_instance\n$(echo "$list_instance" | grep "^> $CI_num.")"
-						remove_a_instance
-					else
-						echo "This instance is a little bit busy, but we still use it."
-						ssh=1
-					fi
-				else
-					# This instance is not busy, let's use it
-					ssh=1
-				fi
-			fi
-		done
-
-		# Start a test through SSH
-		if [ $ssh -eq 1 ]; then
-			PCHECK_SSH
-		fi
-
-	# Or start a test on the local instance of Package check
-	else
-		PCHECK_LOCAL
-	fi
 }
 
 #=================================================
@@ -468,32 +290,19 @@ then
 	# Define the type of test
 	#=================================================
 
-	# Check if it's a test on testing
+    local ynh_branch="stable"
+    log_dir=""
 	if echo "$test_name" | grep --quiet "(testing)"
 	then
-		echo "Test on testing instance"
-		# Add a subdir for the log file
-		log_dir="logs_testing/"
-		# Use a testing container
-		"$script_dir/auto_build/switch_container.sh" testing
-
-	# Or a test on unstable
+        local ynh_branch="testing"
+        log_dir="logs_$ynh_branch/"
 	elif echo "$test_name" | grep --quiet "(unstable)"
 	then
-		echo "Test on unstable instance"
-		# Add a subdir for the log file
-		log_dir="logs_unstable/"
-		# Use a unstable container
-		"$script_dir/auto_build/switch_container.sh" unstable
+        local ynh_branch="unstable"
+        log_dir="logs_$ynh_branch/"
+    fi
 
-	# Else, it's a test on stable
-	else
-		echo "Test on stable instance"
-		# No subdir for the log file
-		log_dir=""
-		# Use a stable container
-		"$script_dir/auto_build/switch_container.sh" stable
-	fi
+    echo "Test on yunohost $ynh_branch"
 
 	#=================================================
 	# Create the lock file
@@ -514,8 +323,6 @@ then
 	# The complete log is the same of the previous log, with complete at the end.
 	complete_app_log=${log_dir}$(basename --suffix=.log "$app_log")_complete.log
 
-
-
 	#=================================================
 	# Launch the test with Package check
 	#=================================================
@@ -531,9 +338,6 @@ then
 
 	# Exec package check according to the architecture
 	EXEC_PCHECK > "$cli_log" 2>&1
-
-
-
 
 	#=================================================
 	# Remove the first line of the work list

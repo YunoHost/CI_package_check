@@ -98,12 +98,8 @@ then
 	else
 		domain_arg=""
 	fi
-        if [ -n "$yuno_pwd" ]; then
-                pass_arg="--password $yuno_pwd"
-        else
-                pass_arg=""
-        fi
-	sudo yunohost tools postinstall $domain_arg $pass_arg
+
+	sudo yunohost tools postinstall $domain_arg --password $yuno_pwd
 fi
 
 if [ -z "$domain" ]; then
@@ -112,21 +108,10 @@ fi
 
 echo "127.0.0.1 $domain	#CI_APP" | sudo tee -a /etc/hosts	# Renseigne le domain dans le host
 
-if [ -n "$yuno_pwd" ]; then
-        pass_arg="--admin-password $yuno_pwd"
-else
-        pass_arg=""
-fi
-
-if ! sudo yunohost user list --output-as json $pass_arg | grep -q "\"username\": \"$ci_user\""	# Vérifie si l'utilisateur existe
+if ! sudo yunohost user list --output-as json | grep -q "\"username\": \"$ci_user\""	# Vérifie si l'utilisateur existe
 then
-	if [ -n "$yuno_pwd" ]; then
-		pass_arg="--password $yuno_pwd --admin-password $yuno_pwd"
-	else
-		pass_arg=""
-	fi
 	echo -e "\e[1m> Création de l'utilisateur YunoHost $ci_user\e[0m" | tee -a "$log_build"
-	sudo yunohost user create --firstname "$ci_user" --mail "$ci_user@$domain" --lastname "$ci_user" "$ci_user" $pass_arg
+	sudo yunohost user create --firstname "$ci_user" --mail "$ci_user@$domain" --lastname "$ci_user" "$ci_user" --password $yuno_pwd
 fi
 
 # Installation du logiciel de CI qui servira d'interface

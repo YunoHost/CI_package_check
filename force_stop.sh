@@ -4,9 +4,6 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 
 lock_pcheckCI="$script_dir/CI.lock"
 
-# Remove the ssh marker
-rm -f "$script_dir/ssh_running"
-
 # Get the id of the current test
 id=$(head -n1 "$lock_pcheckCI")
 
@@ -17,9 +14,7 @@ echo Finish > "$lock_pcheckCI"
 sudo sed --in-place "/$id/d" "$script_dir/work_list"
 
 # Stop package_check, the container and its network
-#source "$script_dir/package_check/lib/common.sh"
-# FIXME ... fetch the LXC_NAME and run `lxc stop $LXC_NAME --timeout 15` or
-# something similar..
+"$script_dir/package_check/package_check.sh" --force-stop
 
 # Wait for the cleaning of the lock file. That means analyseCI.sh finished on its side.
 starttime=$(date +%s)
