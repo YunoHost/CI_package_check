@@ -423,19 +423,23 @@ fi
 xmpppost="$script_dir/auto_build/xmpp_bot/xmpp_post.sh"
 if [[ -e "$xmpppost" ]] && [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]]
 then
-    message="${message}Application $app_name"
+    message="Application $app_name "
 
     if [ -z "$app_level" ]; then
+        message="Failed to test $app_name"
+    elif [ "$app_level" -eq 0 ]
         message+="completely failed the continuous integration tests"
     elif [ -z "$previous_level" ]; then
-        message="just reached the level $app_level"
+        message+="just reached the level $app_level"
     elif [ $app_level -gt $previous_level ]; then
         message+="rises from level $previous_level to level $app_level"
     elif [ $app_level -lt $previous_level ]; then
         message+="goes down from level $previous_level to level $app_level"
     else
-        message="stays at level $app_level"
+        message+="stays at level $app_level"
     fi
+
+    message+=" on $CI_url/job/$id"
 
     "$xmpppost" "$message"
 fi
