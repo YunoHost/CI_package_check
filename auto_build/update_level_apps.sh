@@ -12,23 +12,17 @@ cd "$script_dir/../../apps"	# Se place dans le dossier du dépot git pour le scr
 
 git checkout -b modify_level	# Créer une nouvelle branche pour commiter les changements
 
-while read line
+public_result_list="$script_dir/../logs/list_level_stable_amd64.json"
+
+# For each app in the result file
+for APP in $(jq -r 'keys[]' "$public_result_list")
 do
-	if ! grep -q "_complete.log$" <<< "$line"	# Ignore les logs "complete", ne traite que les autres fichiers.
-	then
-		app=$(grep "^-> Test " < "$script_dir/../logs/$line")	# Récupère le nom du test, ajouté au début du log
-		app=${app#-> Test }	# Supprime "-> Test " pour garder uniquement le nom du test
-        list=Apps
-		app=${app%% ($list)*}
-		app_level=$(tac "$script_dir/../logs/$line" | grep "Global level for this application: " -m1)	# Tac affiche le fichier depuis la fin, et grep limite la recherche au premier terme trouvé pour ne prendre que le dernier résultat.
-		if [ -n "$app_level" ]
-		then	# Si le log contient un niveau pour l'app
-			app_level="${app_level##*: }"
-			app_level=$(echo "$app_level" | cut -d' ' -f1)
-			./change_level.py apps.json "$app" "$app_level"	# Appel le script change_level.py pour modifier le niveau de l'app dans la liste.
-		fi
-	fi
-done <<< "$(ls -1 "$script_dir/../logs")"
+    # Get the level from the stable+amd64 tests
+    level="$(jq -r ".\"$APP\".level" "$public_result_list")"
+    # Inject the new level value to apps.json
+    jq --args $level ".\"$APP\".level=\$level" apps.json > apps.json.new
+    mv apps.json.new apps.json
+done
 
 git diff -U2 --raw | tee "$script_dir/mail_content"	# Affiche les changements (2 lignes de contexte suffisent à voir l'app)
 git add --all *.json | tee -a "$script_dir/mail_content"	# Ajoute les modifications des listes au prochain commit
