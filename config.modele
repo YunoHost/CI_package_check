@@ -15,8 +15,6 @@ timeout=10800
 # Architecture ~x86-64b~
 # LOCAL ou SSH. Pour utiliser SSH, les informations qui suivent doivent être renseignées.
 # Initiez une connxion SSH en root pour vérifier et valider l'hôte.
-> 64.Instance=LOCAL
-
 
 # Nom de domaine ou IP de la machine distante
 > 0.64.ssh_host=domain.tld
@@ -40,8 +38,6 @@ timeout=10800
 # Architecture ~x86-32b~
 # LOCAL ou SSH. Pour utiliser SSH, les informations qui suivent doivent être renseignées.
 # Initiez une connxion SSH en root pour vérifier et valider l'hôte.
-> 32.Instance=LOCAL
-
 
 # Nom de domaine ou IP de la machine distante
 > 0.32.ssh_host=domain.tld
@@ -65,8 +61,6 @@ timeout=10800
 # Architecture ~ARM~
 # LOCAL ou SSH. Pour utiliser SSH, les informations qui suivent doivent être renseignées.
 # Initiez une connxion SSH en root pour vérifier et valider l'hôte.
-> arm.Instance=LOCAL
-
 
 # Nom de domaine ou IP de la machine distante
 > 0.arm.ssh_host=domain.tld
