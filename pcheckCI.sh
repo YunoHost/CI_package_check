@@ -342,6 +342,7 @@ echo -n "Start a test on $arch architecture on yunohost $ynh_branch" > "$cli_log
 
 # Start package check and pass to background
 # Use nice to reduce the priority of processes during the test.
+export PATH=$PATH:/usr/local/bin
 ARCH="$arch" YNH_BRANCH="$ynh_branch" nice --adjustment=10 "$script_dir/package_check/package_check.sh" "$repo" > "$cli_log" 2>&1 &
 
 # Get the pid of package check
