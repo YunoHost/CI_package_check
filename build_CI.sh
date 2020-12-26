@@ -22,7 +22,7 @@ chmod 666 "$script_dir/work_list"
 mkdir -p "$script_dir/logs"
 
 # Install Package check if it isn't an ARM only CI.
-git clone https://github.com/YunoHost/package_check "$script_dir/package_check"
+git clone https://github.com/YunoHost/package_check "$script_dir/package_check" -b cleanup-3 --single-branch
 
 # Set the cron file
 sudo cp "$script_dir/CI_package_check_cron" /etc/cron.d/CI_package_check

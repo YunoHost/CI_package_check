@@ -92,8 +92,7 @@ timeout_expired () {
 
 echo ""
 # Simply print the date, for information
-date
-echo "Wait for work starting..."
+echo "$(date) - Waiting for the test to start..."
 
 # Start the time counter
 set_timeout
@@ -116,7 +115,7 @@ do
 	# Check the timeout, another way to break this loop.
 	timeout_expired
 
-	sleep 30
+	sleep 10
 	echo -n "."
 done
 
@@ -126,8 +125,7 @@ done
 
 echo ""
 # Simply print the date, for a progress information
-date
-echo "Package check currently test the package"
+echo "$(date) - Package check is currently testing the package"
 
 log_line=0
 log_cli="$script_dir/package_check/Test_results_cli.log"
@@ -157,8 +155,7 @@ do
 	log_line=$(wc --lines "$log_cli" | cut --delimiter=' ' --fields=1)
 done
 echo ""
-date
-echo "Test finished."
+echo "$(date) - Test completed."
 
 #=================================================
 # Clean the lock file
@@ -173,6 +170,8 @@ echo "Test finished."
 
 # Success by default
 result=0
+
+# FIXME ...
 
 # Search for some FAIL in the final results
 # But, ignore the line of package linter.

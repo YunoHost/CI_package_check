@@ -293,7 +293,7 @@ touch "$script_dir/../package_check/pcheck.lock" | $tee_to_log
 # Add cron for update the app list, and to modify the level of apps.
 echo_bold "Add cron tasks"
 # Simply add CI_package_check_cron at the end of the current cron.
-cp "$script_dir/CI_package_check_cron" "/etc/cron.d/CI_package_check"
+cat "$script_dir/CI_package_check_cron" >> "/etc/cron.d/CI_package_check"
 # Then set the path
 sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check" | $tee_to_log
 

@@ -288,7 +288,7 @@ check_analyseCI &
 # Define the type of test
 #=================================================
 
-local ynh_branch="stable"
+ynh_branch="stable"
 log_dir=""
 if echo "$test_name" | grep --quiet "(testing)"
 then
@@ -327,8 +327,7 @@ test_json_results=${log_dir}$(basename --suffix=.log "$app_log")_results.json
 #=================================================
 
 # Simply print the date, for information
-date
-echo "A test with Package check will begin on $test_name (id: $id)"
+echo "$(date) - A test begins for $test_name (id: $id)"
 
 # Start the time counter
 set_timeout
@@ -408,12 +407,12 @@ app="$(echo $test_name | awk '{print $1}')"
 
 # Get new level and previous level
 app_level=""
-previous_level=$(jq -r ".$app" "$public_result_list")
+previous_level="$(jq -r ".$app" "$public_result_list")"
 
 if [ -e "$script_dir/logs/$test_json_results" ]
 then
     app_level="$(jq -r ".level" "$script_dir/logs/$test_json_results")"
-    cp "$script_dir/badges/level${app_level}.svg" "$script_dir/logs/$app.svg"
+    cp "$script_dir/auto_build/badges/level${app_level}.svg" "$script_dir/logs/$app.svg"
     # Update/add the results from package_check in the public result list
     jq --slurpfile results "$script_dir/logs/$test_json_results" ".\"$app\"=\$results" > $public_result_list.new
     mv $public_result_list.new $public_result_list
@@ -427,7 +426,7 @@ then
 
     if [ -z "$app_level" ]; then
         message="Failed to test $app_name"
-    elif [ "$app_level" -eq 0 ]
+    elif [ "$app_level" -eq 0 ]; then
         message+="completely failed the continuous integration tests"
     elif [ -z "$previous_level" ]; then
         message+="just reached the level $app_level"
