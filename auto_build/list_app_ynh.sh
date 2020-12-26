@@ -270,30 +270,20 @@ PARSE_LIST () {
 	# Build the list of YunoHost apps
 
 	# Download the list from YunoHost github
-	wget -nv https://raw.githubusercontent.com/YunoHost/apps/master/$list.json -O "$script_dir/$list.json"
-
-	# Build the grep command. To list only the git repository of each app on the json file
-	grep_cmd="grep '\\\"state\\\": \\\"working\\\"' \"$script_dir/$list.json\" -A1 | grep '\\\"url\\\":' | cut --delimiter='\"' --fields=4"
+	wget -nv https://raw.githubusercontent.com/YunoHost/apps/master/apps.json -O "$script_dir/apps.json"
 
 	# Purge the list
-	> "$ynh_list"
+	rm -f "$ynh_list"
 
 	local repo=""
 	# Parse each git repository
-	while read repo
+	for repo in $(jq -r '.[] | select(.state=="working") | .url' $script_dir/apps.json)
 	do
 		# Get the name of the app
 		appname="$(basename --suffix=_ynh $repo)"
 
-		# Then add the name of the list, with the first character in uppercase
-		appname="$appname ($(echo ${list:0:1} | tr [:lower:] [:upper:])${list:1})"
-
-		# Build a standard job only if it's not an ARM CI
-		if [ "$ci_type" != "ARM" ]
-		then
-			# Print the repo and the name of the job into the list
-			echo "$repo;${appname}" >> "$ynh_list"
-		fi
+        # Print the repo and the name of the job into the list
+        echo "$repo;${appname}" >> "$ynh_list"
 
 		# Check the other architectures
 		for architecture in x86-64b x86-32b ARM
@@ -305,7 +295,7 @@ PARSE_LIST () {
 				echo "$repo;${appname} (~${architecture}~)" >> "$ynh_list"
 			fi
 		done
-	done <<< "$(eval $grep_cmd)"
+	done
 }
 
 CLEAR_JOB () {
@@ -374,8 +364,6 @@ message_file="$script_dir/job_send"
 # Type of CI
 ci_type="$(grep CI_TYPE "$script_dir/auto.conf" | cut -d '=' -f2)"
 
-# Work on the apps list
-list=apps
 # Build a list of all jobs currently in the CI
 BUILD_LIST
 
