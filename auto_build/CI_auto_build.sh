@@ -26,7 +26,7 @@ then
 	echo -e "\t2) Stable only"
 	echo -e "\t3) Testing and unstable"
 	echo -e "\t4) Deported ARM"
-	echo -e "\t5) Jessie"
+	echo -e "\t5) Next debian"
 	read -p "?: " answer
 fi
 case $answer in
@@ -212,13 +212,6 @@ SETUP_YUNORUNNER () {
 # SPECIFIC PART FOR YUNORUNNER (END)
 
 
-SETUP_CI_APP () {
-	# Setting up of a CI software as a frontend.
-	# To change the software, add a new function for it and replace the following call.
-# 	SETUP_JENKINS
-	SETUP_YUNORUNNER
-}
-
 # Install YunoHost
 echo_bold "> Check if YunoHost is already installed."
 if [ ! -e /usr/bin/yunohost ]
@@ -251,10 +244,12 @@ then
 	sudo yunohost user create --firstname "$default_ci_user" --mail "$default_ci_user@$domain" --lastname "$default_ci_user" "$default_ci_user" --password $yuno_pwd
 fi
 
-
-
 # Installation of the CI software, which be used as the main interface.
-SETUP_CI_APP
+
+# Setting up of a CI software as a frontend.
+# To change the software, add a new function for it and replace the following call.
+# 	SETUP_JENKINS
+SETUP_YUNORUNNER
 
 
 # Build a config file
