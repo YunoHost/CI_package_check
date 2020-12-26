@@ -43,17 +43,7 @@ then
 	cd /tmp/install_script; sudo ./install_yunohost -a | tee "$LOG_BUILD_AUTO_CI" 2>&1
 
 	echo -e "\e[1m> Post install Yunohost\e[0m" | tee -a "$LOG_BUILD_AUTO_CI"
-	if [ -n "$DOMAIN" ]; then
-		domain_arg="--domain $DOMAIN"
-	else
-		domain_arg=""
-	fi
-        if [ -n "$YUNO_PWD" ]; then
-                pass_arg="--password $YUNO_PWD"
-        else
-                pass_arg=""
-        fi
-	sudo yunohost tools postinstall $domain_arg $pass_arg
+	sudo yunohost tools postinstall --domain $DOMAIN --password $YUNO_PWD
 fi
 
 if [ -z "$DOMAIN" ]; then

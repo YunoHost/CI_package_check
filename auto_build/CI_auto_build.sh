@@ -245,7 +245,7 @@ echo -e "\n127.0.0.1 $domain	#CI_APP" | sudo tee -a /etc/hosts
 
 
 # Check if the user already exist
-if ! sudo yunohost user list --output-as json $pass_arg | grep -q "\"username\": \"$default_ci_user\""
+if ! sudo yunohost user list --output-as json | grep -q "\"username\": \"$default_ci_user\""
 then
 	echo_bold "> Create a YunoHost user"
 	sudo yunohost user create --firstname "$default_ci_user" --mail "$default_ci_user@$domain" --lastname "$default_ci_user" "$default_ci_user" --password $yuno_pwd
