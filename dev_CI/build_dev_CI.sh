@@ -102,6 +102,8 @@ then
 	sudo yunohost tools postinstall $domain_arg --password $yuno_pwd
 fi
 
+yunohost firewall allow Both 67
+
 if [ -z "$domain" ]; then
 	domain=$(sudo yunohost domain list | grep -m1 "-" | awk '{print $2}')	# Récupère le premier domaine disponible dans Yunohost
 fi

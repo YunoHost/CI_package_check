@@ -29,7 +29,7 @@ then
 fi
 
 # Set a lock file for this upgrade
-echo "Upgrade" > "$lock_pcheckCI"
+echo "$$" > "$lock_pcheckCI"
 
 #=================================================
 # Upgrade CI_package_check

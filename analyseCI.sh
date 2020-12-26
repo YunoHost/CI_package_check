@@ -1,29 +1,21 @@
 #!/bin/bash
 
-# This script will be executed by the CI software (Usually Jenkins)
-# This script CAN'T have any root access.
-# All information print on stdout will be printed by the CI software.
-
-#=================================================
-# Grab the script directory
-#=================================================
-
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
-
-#=================================================
-# Check the number of arguments
-#=================================================
 
 if [ $# -ne 2 ]
 then
-	echo "This script need to take in argument the package which be tested and the name of the test."
-	exit 1
+    echo "This script need to take in argument the package which be tested and the name of the test."
+    exit 1
 fi
 
-# Repository
-repo="$1"
-# Test name
-test_name="$2"
+lock_CI="$script_dir/CI.lock"
+lock_package_check="$script_dir/package_check/pcheck.lock"
+
+CI_domain="$(grep DOMAIN= "$script_dir/auto_build/auto.conf" | cut --delimiter='=' --fields=2)"
+CI_path="$(grep CI_PATH= "$script_dir/auto_build/auto.conf" | cut --delimiter='=' --fields=2)"
+CI_url="https://$CI_domain/$CI_path"
+
+timeout=$(grep "^timeout=" "$script_dir/config" | cut --delimiter="=" --fields=2)
 
 #=================================================
 # Delay the beginning of this script, to prevent concurrent executions
@@ -34,162 +26,187 @@ milli_sleep=$(head --lines=20 /dev/urandom | tr --complement --delete '0-9' | he
 # And wait for this value in millisecond
 sleep "0.$milli_sleep"
 
-#=================================================
-# Define a unique ID for this test
-#=================================================
+#============================
+# Check / take the lock
+#=============================
 
-id=$(head --lines=20 /dev/urandom | tr --complement --delete 'A-Za-z0-9' | head --bytes=10)
-
-#=================================================
-# Execution indicator
-#=================================================
-
-analyseCI_indic="$script_dir/analyseCI_exec"
-exec_indicator () {
-	# Wait for the creation of analyseCI_exec file by pcheckCI.sh
-	while ! test -e "$analyseCI_indic"; do sleep 1; done
-	# Print the pid of this script in a file
-	echo -n "$$" > "$analyseCI_indic"
-	echo ";$id" >> "$analyseCI_indic"
-}
-# Start the indicator loop in background.
-exec_indicator &
-
-#=================================================
-# Add a test to the work_list
-#=================================================
-
-echo "$repo;$id;$test_name" >> "$script_dir/work_list"
-
-# This file will be read by pcheckCI.sh
-# And pcheckCI.sh will launch a test by using the informations in this line.
-
-#=================================================
-# Time out
-#=================================================
-
-set_timeout () {
-	# Get the maximum timeout value
-	timeout=$(grep "^timeout=" "$script_dir/config" | cut --delimiter="=" --fields=2)
-
-	# Set the starting time
-	starttime=$(date +%s)
-}
-
-# Check if the timeout has expired
-timeout_expired () {
-	# Compare the current time with the max timeout
-	if [ $(( $(date +%s) - $starttime )) -ge $timeout ]
-	then
-		echo -e "\e[91m\e[1m!!! Execution aborted, timeout reached ($(( $timeout / 60 )) min). !!!\e[0m"
-		exit 1
-	fi
-}
-
-#=================================================
-# Wait for the beginning of the script pcheckCI
-#=================================================
-
-echo ""
-# Simply print the date, for information
-echo "$(date) - Waiting for the test to start..."
-
-# Start the time counter
-set_timeout
-
-lock_pcheckCI="$script_dir/CI.lock"
-
-# Start a infinite loop
-while true
-do
-	# Check the lock file. Indicator of pcheckCI execution
-	if test -e "$lock_pcheckCI"
-	then
-		# Check if the lock file contains the id of the current test
-		if grep --quiet "$id" "$lock_pcheckCI"
-		then
-			# If the lock file contains the current id, the test has begun. Break the waiting loop
-			break
-		fi
-	fi
-	# Check the timeout, another way to break this loop.
-	timeout_expired
-
-	sleep 10
-	echo -n "."
-done
-
-#=================================================
-# Follow the testing process
-#=================================================
-
-echo ""
-# Simply print the date, for a progress information
-echo "$(date) - Package check is currently testing the package"
-
-log_line=0
-log_cli="$script_dir/package_check/Test_results_cli.log"
-
-# Restart the time counter
-set_timeout
-
-# Loop as long as the lock file doesn't contain "Finish" indication
-while [ "$(cat "$lock_pcheckCI")" != "Finish" ]
-do
-
-	# Print the progression of the test every 10 seconds
-	sleep 10
-
-	# If $log_line equal 0, it's the first pass.
-	if [ $log_line -eq 0 ]
-	then
-		# Simply print the current log.
-		cat "$log_cli"
-
-	# Or print the log from the last readed line
-	else
-		tail --lines=+$(( $log_line + 1 )) "$log_cli"
-	fi
-
-	# Count the number of lines previously read
-	log_line=$(wc --lines "$log_cli" | cut --delimiter=' ' --fields=1)
-done
-echo ""
-echo "$(date) - Test completed."
-
-#=================================================
-# Clean the lock file
-#=================================================
-
-# Clean the log file for inform pcheckCI that this script is finished.
-> "$lock_pcheckCI"
-
-#=================================================
-# Check the final results
-#=================================================
-
-# Success by default
-result=0
-
-# FIXME ...
-
-# Search for some FAIL in the final results
-# But, ignore the line of package linter.
-if grep "FAIL$" "$log_cli" | grep --invert-match "Package linter" | grep --quiet "FAIL$"
+if [ -e $lock_CI ]
 then
-	# If a fail was find, the test failed.
-	result=1
-
-# Search also for a "PCHECK_AVORTED". That means the script pcheckCI was aborted by a timeout.
-elif grep "PCHECK_AVORTED" "$log_cli"
-then
-	result=1
-
-# And, finally, check if at least one test was a success.
-elif ! grep "SUCCESS$" "$log_cli" | grep --invert-match "Package linter" | grep --quiet "SUCCESS$"
-then
-	result=1
+    lock_CI_PID="$(cat $lock_CI)"
+    if [ -n "$lock_CI_PID" ]
+    then
+        if ps --pid $lock_CI_PID | grep --quiet $lock_CI_PID
+        then
+            echo -e "\e[91m\e[1m!!! Another analyseCI process is currently using the lock !!!\e[0m"
+            exit 1
+        else
+            echo "Stale lock detected, removing it"
+        fi
+    fi
+    rm -f $lock_CI
 fi
 
-# Exit with the result as exit code. To inform the CI software of the global result
-exit $result
+echo "$$" > $lock_CI
+
+#============================
+# Test parameters
+#=============================
+
+# Repository
+repo="$1"
+# Test name
+test_name="$2"
+# Keep only the repositery
+repo=$(echo $repo | cut --delimiter=';' --fields=1)
+app="$(echo $test_name | awk '{print $1}')"
+
+# Obviously that's too simple to have a unique nomenclature, so we have several of them
+architecture="$(echo $(expr match "$test_name" '.*\((~.*~)\)') | cut --delimiter='(' --fields=2 | cut --delimiter=')' --fields=1)"
+arch="amd64"
+if [ "$architecture" = "~x86-32b~" ]
+then
+    arch="i386"
+elif [ "$architecture" = "~ARM~" ]
+then
+    arch="armhf"
+fi
+
+ynh_branch="stable"
+log_dir=""
+if echo "$test_name" | grep --quiet "(testing)"
+then
+    local ynh_branch="testing"
+    log_dir="logs_$ynh_branch/"
+elif echo "$test_name" | grep --quiet "(unstable)"
+then
+    local ynh_branch="unstable"
+    log_dir="logs_$ynh_branch/"
+fi
+
+# From the repositery, remove http(s):// and replace all / by _ to build the log name
+log_name=${log_dir}$(echo "${repo#http*://}" | sed 's@[/ ]@_@g')$architecture
+# The complete log is the same of the previous log, with complete at the end.
+complete_app_log=${log_name}_complete.log
+test_json_results=${log_name}_results.json
+
+# Make sure /usr/local/bin is in the path, because that's where the lxc/lxd bin lives
+export PATH=$PATH:/usr/local/bin
+
+#=================================================
+# Timeout handling utils
+#=================================================
+
+function watchdog() {
+    local package_check_pid=$1
+    # Start a loop while package check is working
+    while ps --pid $package_check_pid | grep --quiet $package_check_pid
+    do
+        sleep 10
+
+        if [ -e $lock_package_check ]
+        then
+            lock_timestamp="$(stat -c %Y $lock_package_check)"
+            current_timestamp="$(date +%s)"
+            if [[ "$(($current_timestamp > $lock_timestamp))" -lt "$timeout" ]]
+            then
+                pkill -9 $package_check_pid
+                rm -f $lock_package_check
+                exit_with_error "Package check aborted, timeout reached ($(( $timeout / 60 )) min)."
+            fi
+        fi
+    done
+
+    [ -e "$script_dir/package_check/results.json" ] \
+    || exit_with_error "It looks like package_check did not finish properly ..."
+}
+
+function exit_with_error() {
+    local message="$1"
+
+    echo -e "\e[91m\e[1m!!! $message !!!\e[0m"
+    ARCH="$arch" YNH_BRANCH="$ynh_branch" "$script_dir/package_check/package_check.sh" --force-stop
+    exit 1
+}
+
+#=================================================
+# The actual testing ...
+#=================================================
+
+# Exec package check according to the architecture
+echo "$(date) - Starting a test for $app on architecture $arch with yunohost $ynh_branch"
+
+rm -f "$script_dir/package_check/Complete.log"
+rm -f "$script_dir/package_check/results.json"
+
+ARCH="$arch" YNH_BRANCH="$ynh_branch" nice --adjustment=10 "$script_dir/package_check/package_check.sh" "$repo" 2>&1 &
+
+watchdog $!
+
+# Copy the complete log
+cp "$script_dir/package_check/Complete.log" "$script_dir/logs/$complete_app_log"
+cp "$script_dir/package_check/results.json" "$script_dir/logs/$test_json_results"
+
+if [ -n "$CI_url" ]
+then
+    full_log_path="https://$CI_url/logs/$complete_app_log"
+else
+    full_log_path="$script_dir/logs/$complete_app_log"
+fi
+
+echo "$(date) - Test completed"
+echo "The complete log for this application was duplicated and is accessible at $full_log_path"
+
+#=================================================
+# Check / update level of the app
+#=================================================
+
+public_result_list="$script_dir/logs/list_level_${ynh_branch}_$arch.json"
+[ -e "$public_result_list" ] || echo "{}" > "$public_result_list"
+
+# Get new level and previous level
+app_level=""
+previous_level="$(jq -r ".$app" "$public_result_list")"
+
+if [ -e "$script_dir/logs/$test_json_results" ]
+then
+    app_level="$(jq -r ".level" "$script_dir/logs/$test_json_results")"
+    cp "$script_dir/auto_build/badges/level${app_level}.svg" "$script_dir/logs/$app.svg"
+    # Update/add the results from package_check in the public result list
+    jq --slurpfile results "$script_dir/logs/$test_json_results" ".\"$app\"=\$results" > $public_result_list.new
+    mv $public_result_list.new $public_result_list
+fi
+
+#=================================================
+# Send update on XMPP
+#=================================================
+
+# We post message on XMPP if we're running for tests on stable/amd64
+xmpppost="$script_dir/auto_build/xmpp_bot/xmpp_post.sh"
+if [[ -e "$xmpppost" ]] && [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]]
+then
+    message="Application $app_name "
+
+    if [ -z "$app_level" ]; then
+        message="Failed to test $app_name"
+    elif [ "$app_level" -eq 0 ]; then
+        message+="completely failed the continuous integration tests"
+    elif [ -z "$previous_level" ]; then
+        message+="just reached the level $app_level"
+    elif [ $app_level -gt $previous_level ]; then
+        message+="rises from level $previous_level to level $app_level"
+    elif [ $app_level -lt $previous_level ]; then
+        message+="goes down from level $previous_level to level $app_level"
+    else
+        message+="stays at level $app_level"
+    fi
+
+    message+=" on $CI_url/job/$id"
+
+    "$xmpppost" "$message"
+fi
+
+#==================
+# Free the lock
+#==================
+
+rm -f $lock_CI

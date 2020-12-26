@@ -227,6 +227,7 @@ then
 	sudo yunohost tools postinstall --domain $domain --password $yuno_pwd
 fi
 
+yunohost firewall allow Both 67
 
 # Get the first available domain if no domain is defined.
 if [ -z "$domain" ]; then
