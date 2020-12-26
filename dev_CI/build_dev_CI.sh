@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Active patches for scaleway...
-scaleway=1
-
-
 script_dir="$(dirname $(realpath $0))"
 
 log_build="$script_dir/Log_build_dev_ci.log"
@@ -76,11 +72,6 @@ EOF
 }
 # / JENKINS
 
-SETUP_CI_APP () {
-	# Installation du logiciel de CI qui servira d'interface
-	# Pour changer de logiciel, ajouter simplement une fonction et changer l'appel qui suit.
-	SETUP_JENKINS
-}
 
 echo -e "\e[1m> Vérifie que YunoHost est déjà installé.\e[0m" | tee "$log_build"
 if [ ! -e /usr/bin/yunohost ]
@@ -102,6 +93,8 @@ then
 	sudo yunohost tools postinstall $domain_arg --password $yuno_pwd
 fi
 
+systemctl stop dnsmasq
+systemctl disable dnsmasq
 yunohost firewall allow Both 67
 
 if [ -z "$domain" ]; then
@@ -117,7 +110,7 @@ then
 fi
 
 # Installation du logiciel de CI qui servira d'interface
-SETUP_CI_APP
+SETUP_JENKINS
 
 echo -e "\e[1mMise en place de Package check à l'aide des scripts d'intégration continue\e[0m" | tee -a "$log_build"
 "$script_dir/../build_CI.sh"
@@ -170,17 +163,6 @@ then
 else
 	echo -e "\e[91m$ci n'a pas les droits suffisants pour accéder aux scripts !\e[0m" | tee -a "$log_build"
 fi
-
-
-# ALERT
-if [ $scaleway -eq 1 ]
-then
-	# With scaleway, there no fstab...
-	# So, we will build it...
-	uuid_vda=$(sudo blkid /dev/vda -o value -s UUID)
-	echo "UUID=$uuid_vda /     ext4    rw,relatime,data=ordered        0       1" >> /etc/fstab
-fi
-# ALERT
 
 
 # Installation de ssh_chroot_dir

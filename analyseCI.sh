@@ -89,6 +89,13 @@ log_name=${log_dir}$(echo "${repo#http*://}" | sed 's@[/ ]@_@g')$architecture
 complete_app_log=${log_name}_complete.log
 test_json_results=${log_name}_results.json
 
+xmpppost="$script_dir/auto_build/xmpp_bot/xmpp_post.sh"
+enable_xmpp_notification="false"
+if [[ -e "$xmpppost" ]] && [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]]
+then
+    enable_xmpp_notification="true"
+fi
+
 # Make sure /usr/local/bin is in the path, because that's where the lxc/lxd bin lives
 export PATH=$PATH:/usr/local/bin
 
@@ -107,25 +114,33 @@ function watchdog() {
         then
             lock_timestamp="$(stat -c %Y $lock_package_check)"
             current_timestamp="$(date +%s)"
-            if [[ "$(($current_timestamp > $lock_timestamp))" -lt "$timeout" ]]
+            if [[ "$(($current_timestamp - $lock_timestamp))" -gt "$timeout" ]]
             then
-                pkill -9 $package_check_pid
+                kill -9 $package_check_pid
                 rm -f $lock_package_check
-                exit_with_error "Package check aborted, timeout reached ($(( $timeout / 60 )) min)."
+                force_stop "Package check aborted, timeout reached ($(( $timeout / 60 )) min)."
+                return 1
             fi
         fi
     done
 
-    [ -e "$script_dir/package_check/results.json" ] \
-    || exit_with_error "It looks like package_check did not finish properly ..."
+    if [ ! -e "$script_dir/package_check/results.json" ]
+    then
+        force_stop "It looks like package_check did not finish properly ..."
+        return 1
+    fi
 }
 
-function exit_with_error() {
+function force_stop() {
     local message="$1"
 
     echo -e "\e[91m\e[1m!!! $message !!!\e[0m"
+    if [[ $enable_xmpp_notification == "true" ]]
+    then
+        "$xmpppost" "While testing $app: $message"
+    fi
+
     ARCH="$arch" YNH_BRANCH="$ynh_branch" "$script_dir/package_check/package_check.sh" --force-stop
-    exit 1
 }
 
 #=================================================
@@ -140,7 +155,7 @@ rm -f "$script_dir/package_check/results.json"
 
 ARCH="$arch" YNH_BRANCH="$ynh_branch" nice --adjustment=10 "$script_dir/package_check/package_check.sh" "$repo" 2>&1 &
 
-watchdog $!
+watchdog $! || exit 1
 
 # Copy the complete log
 cp "$script_dir/package_check/Complete.log" "$script_dir/logs/$complete_app_log"
@@ -181,8 +196,7 @@ fi
 #=================================================
 
 # We post message on XMPP if we're running for tests on stable/amd64
-xmpppost="$script_dir/auto_build/xmpp_bot/xmpp_post.sh"
-if [[ -e "$xmpppost" ]] && [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]]
+if [[ "$enable_xmpp_notification" == "true" ]]
 then
     message="Application $app_name "
 

@@ -1,3 +1,6 @@
 *.swp
 *~
-Notes
+auto_build/badges
+package_check/
+logs/
+config

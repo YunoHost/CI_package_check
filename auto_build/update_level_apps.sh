@@ -5,12 +5,17 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 
 dest=$(cat "$script_dir/auto.conf" | grep MAIL_DEST= | cut -d '=' -f2)
 
-sudo rm -r "$script_dir/../../apps"	# Supprime le précédent clone de YunoHost/apps
-git clone -q git@github.com:YunoHost/apps.git "$script_dir/../../apps"	# Récupère la dernière version de https://github.com/YunoHost/apps
+# Supprime le précédent clone de YunoHost/apps
+sudo rm -r "$script_dir/../../apps"	
 
-cd "$script_dir/../../apps"	# Se place dans le dossier du dépot git pour le script python
+# Récupère la dernière version de https://github.com/YunoHost/apps
+git clone -q git@github.com:YunoHost/apps.git "$script_dir/../../apps"	
 
-git checkout -b modify_level	# Créer une nouvelle branche pour commiter les changements
+# Se place dans le dossier du dépot git pour le script python
+cd "$script_dir/../../apps"	
+
+# Créer une nouvelle branche pour commiter les changements
+git checkout -b modify_level
 
 public_result_list="$script_dir/../logs/list_level_stable_amd64.json"
 
@@ -24,8 +29,10 @@ do
     mv apps.json.new apps.json
 done
 
-git diff -U2 --raw | tee "$script_dir/mail_content"	# Affiche les changements (2 lignes de contexte suffisent à voir l'app)
-git add --all *.json | tee -a "$script_dir/mail_content"	# Ajoute les modifications des listes au prochain commit
+# Affiche les changements (2 lignes de contexte suffisent à voir l'app)
+git diff -U2 --raw | tee "$script_dir/mail_content"	
+# Ajoute les modifications des listes au prochain commit
+git add --all *.json | tee -a "$script_dir/mail_content"	
 git commit -q -m "Update app's level" | tee -a "$script_dir/mail_content"
 
 # Git doit être configuré sur la machine.
