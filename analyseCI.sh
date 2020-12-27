@@ -2,20 +2,22 @@
 
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
+cd $script_dir
+
 if [ $# -ne 2 ]
 then
     echo "This script need to take in argument the package which be tested and the name of the test."
     exit 1
 fi
 
-lock_CI="$script_dir/CI.lock"
-lock_package_check="$script_dir/package_check/pcheck.lock"
+lock_CI="./CI.lock"
+lock_package_check="./package_check/pcheck.lock"
 
-CI_domain="$(grep DOMAIN= "$script_dir/auto_build/auto.conf" | cut --delimiter='=' --fields=2)"
-CI_path="$(grep CI_PATH= "$script_dir/auto_build/auto.conf" | cut --delimiter='=' --fields=2)"
+CI_domain="$(grep DOMAIN= "./config" | cut --delimiter='=' --fields=2)"
+CI_path="$(grep CI_PATH= "./config" | cut --delimiter='=' --fields=2)"
+TIMEOUT="$(grep "^TIMEOUT=" "./config" | cut --delimiter="=" --fields=2)"
+
 CI_url="https://$CI_domain/$CI_path"
-
-timeout=$(grep "^timeout=" "$script_dir/config" | cut --delimiter="=" --fields=2)
 
 #=================================================
 # Delay the beginning of this script, to prevent concurrent executions
@@ -101,7 +103,7 @@ log_name=${log_dir}$(echo "${repo#http*://}" | sed 's@[/ ]@_@g')$architecture
 complete_app_log=${log_name}_complete.log
 test_json_results=${log_name}_results.json
 
-xmpppost="$script_dir/auto_build/xmpp_bot/xmpp_post.sh"
+xmpppost="./xmpp_bot/xmpp_post.sh"
 is_main_ci="false"
 if [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]]
 then
@@ -126,17 +128,17 @@ function watchdog() {
         then
             lock_timestamp="$(stat -c %Y $lock_package_check)"
             current_timestamp="$(date +%s)"
-            if [[ "$(($current_timestamp - $lock_timestamp))" -gt "$timeout" ]]
+            if [[ "$(($current_timestamp - $lock_timestamp))" -gt "$TIMEOUT" ]]
             then
                 kill -s SIGTERM $package_check_pid
                 rm -f $lock_package_check
-                force_stop "Package check aborted, timeout reached ($(( $timeout / 60 )) min)."
+                force_stop "Package check aborted, timeout reached ($(( $TIMEOUT / 60 )) min)."
                 return 1
             fi
         fi
     done
 
-    if [ ! -e "$script_dir/package_check/results.json" ]
+    if [ ! -e "./package_check/results.json" ]
     then
         force_stop "It looks like package_check did not finish properly ..."
         return 1
@@ -152,7 +154,7 @@ function force_stop() {
         "$xmpppost" "While testing $app: $message"
     fi
 
-    ARCH="$arch" YNH_BRANCH="$ynh_branch" "$script_dir/package_check/package_check.sh" --force-stop
+    ARCH="$arch" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
 }
 
 #=================================================
@@ -162,8 +164,8 @@ function force_stop() {
 # Exec package check according to the architecture
 echo "$(date) - Starting a test for $app on architecture $arch with yunohost $ynh_branch"
 
-rm -f "$script_dir/package_check/Complete.log"
-rm -f "$script_dir/package_check/results.json"
+rm -f "./package_check/Complete.log"
+rm -f "./package_check/results.json"
 
 # Here we use a weird trick with 'script -qefc'
 # The reason is that :
@@ -171,20 +173,20 @@ rm -f "$script_dir/package_check/results.json"
 # therefore later, the command lxc exec -t *won't be in a tty* (despite the -t) and command outputs will appear empty...
 # Instead, with the magic of script -qefc we can pretend to be in a tty somehow...
 # Adapted from https://stackoverflow.com/questions/32910661/pretend-to-be-a-tty-in-bash-for-any-command
-cmd="ARCH=\"$arch\" YNH_BRANCH=\"$ynh_branch\" nice --adjustment=10 \"$script_dir/package_check/package_check.sh\" \"$repo\" 2>&1"
+cmd="ARCH=$arch YNH_BRANCH=$ynh_branch nice --adjustment=10 './package_check/package_check.sh' '$repo' 2>&1"
 script -qefc "$cmd" &
 
 watchdog $! || exit 1
 
 # Copy the complete log
-cp "$script_dir/package_check/Complete.log" "$script_dir/logs/$complete_app_log"
-cp "$script_dir/package_check/results.json" "$script_dir/logs/$test_json_results"
+cp "./package_check/Complete.log" "./logs/$complete_app_log"
+cp "./package_check/results.json" "./logs/$test_json_results"
 
 if [ -n "$CI_url" ]
 then
     full_log_path="$CI_url/logs/$complete_app_log"
 else
-    full_log_path="$script_dir/logs/$complete_app_log"
+    full_log_path="$(pwd)/logs/$complete_app_log"
 fi
 
 echo "The complete log for this application was duplicated and is accessible at $full_log_path"
@@ -197,11 +199,11 @@ echo ""
 # Check / update level of the app
 #=================================================
 
-public_result_list="$script_dir/logs/list_level_${ynh_branch}_$arch.json"
+public_result_list="./logs/list_level_${ynh_branch}_$arch.json"
 [ -e "$public_result_list" ] || echo "{}" > "$public_result_list"
 
 # Get new level and previous level
-app_level="$(jq -r ".level" "$script_dir/logs/$test_json_results")"
+app_level="$(jq -r ".level" "./logs/$test_json_results")"
 previous_level="$(jq -r ".$app" "$public_result_list")"
 
 # We post message on XMPP if we're running for tests on stable/amd64
@@ -228,11 +230,11 @@ echo $message
 if [[ "$is_main_ci" == "true" ]]
 then
     [ -e "$xmpppost" ] && "$xmpppost" "$message"
-    cp "$script_dir/auto_build/badges/level${app_level}.svg" "$script_dir/logs/$app.svg"
+    cp "./badges/level${app_level}.svg" "./logs/$app.svg"
 fi
 
 # Update/add the results from package_check in the public result list
-jq --slurpfile results "$script_dir/logs/$test_json_results" ".\"$app\"=\$results" $public_result_list > $public_result_list.new
+jq --slurpfile results "./logs/$test_json_results" ".\"$app\"=\$results" $public_result_list > $public_result_list.new
 mv $public_result_list.new $public_result_list
 
 # Annnd we're done !

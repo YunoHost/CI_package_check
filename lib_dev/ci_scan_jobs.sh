@@ -10,8 +10,8 @@ script_dir="$(dirname $(realpath $0))"
 # DEFINE VARIABLES
 #=================================================
 
-ci_path=$(grep "CI_PATH=" "$script_dir/config.conf" | cut -d'=' -f2)
-domain=$(grep "DOMAIN=" "$script_dir/config.conf" | cut -d'=' -f2)
+ci_path=$(grep "CI_PATH=" "$script_dir/lib/auto.conf" | cut -d'=' -f2)
+domain=$(grep "DOMAIN=" "$script_dir/lib/auto.conf" | cut -d'=' -f2)
 jenkins_url=$domain/$ci_path
 jenkins_java_call="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -ssh -user ynhci -noCertificateCheck -s https://$jenkins_url/ -i $script_dir/jenkins/jenkins_key"
 base_jenkins_job="$script_dir/jenkins/jenkins_job"

@@ -1,6 +1,6 @@
 *.swp
 *~
-auto_build/badges
+lib/badges
 package_check/
 logs/
 config
