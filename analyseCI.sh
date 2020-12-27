@@ -102,10 +102,10 @@ complete_app_log=${log_name}_complete.log
 test_json_results=${log_name}_results.json
 
 xmpppost="$script_dir/auto_build/xmpp_bot/xmpp_post.sh"
-enable_xmpp_notification="false"
-if [[ -e "$xmpppost" ]] && [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]]
+is_main_ci="false"
+if [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]]
 then
-    enable_xmpp_notification="true"
+    is_main_ci="true"
 fi
 
 # Make sure /usr/local/bin is in the path, because that's where the lxc/lxd bin lives
@@ -147,7 +147,7 @@ function force_stop() {
     local message="$1"
 
     echo -e "\e[91m\e[1m!!! $message !!!\e[0m"
-    if [[ $enable_xmpp_notification == "true" ]]
+    if [[ $is_main_ci == "true" ]]
     then
         "$xmpppost" "While testing $app: $message"
     fi
@@ -187,8 +187,11 @@ else
     full_log_path="$script_dir/logs/$complete_app_log"
 fi
 
-echo "$(date) - Test completed"
 echo "The complete log for this application was duplicated and is accessible at $full_log_path"
+
+echo ""
+echo "-------------------------------------------"
+echo ""
 
 #=================================================
 # Check / update level of the app
@@ -198,42 +201,39 @@ public_result_list="$script_dir/logs/list_level_${ynh_branch}_$arch.json"
 [ -e "$public_result_list" ] || echo "{}" > "$public_result_list"
 
 # Get new level and previous level
-app_level=""
+app_level="$(jq -r ".level" "$script_dir/logs/$test_json_results")"
 previous_level="$(jq -r ".$app" "$public_result_list")"
 
-if [ -e "$script_dir/logs/$test_json_results" ]
-then
-    app_level="$(jq -r ".level" "$script_dir/logs/$test_json_results")"
-    cp "$script_dir/auto_build/badges/level${app_level}.svg" "$script_dir/logs/$app.svg"
-    # Update/add the results from package_check in the public result list
-    jq --slurpfile results "$script_dir/logs/$test_json_results" ".\"$app\"=\$results" $public_result_list > $public_result_list.new
-    mv $public_result_list.new $public_result_list
-fi
-
-#=================================================
-# Send update on XMPP
-#=================================================
-
 # We post message on XMPP if we're running for tests on stable/amd64
-if [[ "$enable_xmpp_notification" == "true" ]]
-then
-    message="Application $app_name "
+message="Application $app "
 
-    if [ -z "$app_level" ]; then
-        message="Failed to test $app_name"
-    elif [ "$app_level" -eq 0 ]; then
-        message+="completely failed the continuous integration tests"
-    elif [ -z "$previous_level" ]; then
-        message+="just reached the level $app_level"
-    elif [ $app_level -gt $previous_level ]; then
-        message+="rises from level $previous_level to level $app_level"
-    elif [ $app_level -lt $previous_level ]; then
-        message+="goes down from level $previous_level to level $app_level"
-    else
-        message+="stays at level $app_level"
-    fi
-
-    message+=" on $CI_url/job/$id"
-
-    "$xmpppost" "$message"
+if [ "$app_level" -eq 0 ]; then
+    message+="completely failed the continuous integration tests"
+elif [ -z "$previous_level" ]; then
+    message+="just reached level $app_level !"
+elif [ $app_level -gt $previous_level ]; then
+    message+="rises from level $previous_level to level $app_level"
+elif [ $app_level -lt $previous_level ]; then
+    message+="goes down from level $previous_level to level $app_level"
+else
+    message+="stays at level $app_level"
 fi
+
+# FIXME : how to get the $id from yunorunner...
+message+=" on $CI_url/job/$id"
+
+echo $message
+
+# Send XMPP notification
+if [[ "$is_main_ci" == "true" ]]
+then
+    [ -e "$xmpppost" ] && "$xmpppost" "$message"
+    cp "$script_dir/auto_build/badges/level${app_level}.svg" "$script_dir/logs/$app.svg"
+fi
+
+# Update/add the results from package_check in the public result list
+jq --slurpfile results "$script_dir/logs/$test_json_results" ".\"$app\"=\$results" $public_result_list > $public_result_list.new
+mv $public_result_list.new $public_result_list
+
+# Annnd we're done !
+echo "$(date) - Test completed"
