@@ -49,6 +49,18 @@ fi
 echo "$$" > $lock_CI
 
 #============================
+# Cleanup after exit/kill
+#=============================
+
+function cleanup()
+{
+    rm $lock_CI
+}
+
+trap cleanup EXIT
+trap 'exit 2' TERM KILL
+
+#============================
 # Test parameters
 #=============================
 
@@ -163,7 +175,7 @@ cp "$script_dir/package_check/results.json" "$script_dir/logs/$test_json_results
 
 if [ -n "$CI_url" ]
 then
-    full_log_path="https://$CI_url/logs/$complete_app_log"
+    full_log_path="$CI_url/logs/$complete_app_log"
 else
     full_log_path="$script_dir/logs/$complete_app_log"
 fi
@@ -218,9 +230,3 @@ then
 
     "$xmpppost" "$message"
 fi
-
-#==================
-# Free the lock
-#==================
-
-rm -f $lock_CI
