@@ -48,7 +48,7 @@ echo_bold () {
 
 function install_dependencies() {
 
-    echo_bold "> Installing misc dependencies..."
+    echo_bold "> Installing dependencies..."
     apt-get update
     apt-get install -y curl wget git python3-pip lynx jq python-xmpp snapd
     
@@ -66,7 +66,7 @@ function install_dependencies() {
     wget https://raw.githubusercontent.com/YunoHost/weblate2xmpp/master/to_room.py -O ./xmpp_bot/
     touch "./xmpp_bot/password"
     chmod 600 "./xmpp_bot/password"
-    echo 'python "./xmpp_bot/to_room.py" "$(cat /home/CI_package_check/xmpp_bot/password)" "$@" apps' \
+    echo 'python /home/CI_package_check/xmpp_bot/to_room.py "$(cat /home/CI_package_check/xmpp_bot/password)" "$@" apps' \
         > "./xmpp_bot/xmpp_post.sh"
     chmod +x "./xmpp_bot/xmpp_post.sh"
 }
@@ -83,19 +83,18 @@ function setup_yunohost() {
     
     echo_bold "> Create CI user"
     yunohost user create --firstname "$default_ci_user" --mail "$default_ci_user@$domain" --lastname "$default_ci_user" "$default_ci_user" --password $yuno_pwd
-}
-
-function network_tweaks() {
-    echo_bold "> Disabling dnsmasq + allow port 67 on firewall to not interfere with LXD's DHCP"
-    systemctl stop dnsmasq
-    systemctl disable dnsmasq
-    yunohost firewall allow Both 67
 
     # Idk why this is needed but wokay I guess >_>
     echo -e "\n127.0.0.1 $domain	#CI_APP" >> /etc/hosts
 }
 
 function setup_lxd() {
+
+    echo_bold "> Disabling dnsmasq + allow port 67 on firewall to not interfere with LXD's DHCP"
+
+    systemctl stop dnsmasq
+    systemctl disable dnsmasq
+    yunohost firewall allow Both 67
 
     echo_bold "> Installing lxd..."
 
@@ -123,24 +122,14 @@ function setup_lxd() {
 function configure_CI() {
     echo_bold "> Configuring the CI..."
    
-    # 1. the "auto.conf" conf...
-    echo > "./config" <<EOF
+    cat > "./config" <<EOF
 TIMEOUT=10800
-
-# User / coordinateur de la CI
-CI_USER=$ci_user
-
-# Path du logiciel de CI
-CI_PATH=$ci_path
-
-# Domaine utilisé
-DOMAIN=$domain
-
-# Type de CI
 CI_TYPE=$ci_type
+CI_USER=$ci_user
+CI_URL=$domain/$ci_path
 EOF
 
-    # 2. cron tasks
+    # Cron tasks
     if [ $ci_type == "Dev" ]
     then
         cron_file="./lib/cron_dev"
@@ -149,7 +138,7 @@ EOF
     fi
     cp "$cron_file" "/etc/cron.d/CI_package_check"
 
-    # 3. Add permission to the user for the entire CI_package_check because it'll be the one running the tests (as a non-root user)
+    # Add permission to the user for the entire CI_package_check because it'll be the one running the tests (as a non-root user)
     chown -R $ci_user ./
 }
 
@@ -160,17 +149,15 @@ EOF
 install_dependencies
 
 [ -e /usr/bin/yunohost ] || setup_yunohost
-network_tweaks 
-
 
 if [ $ci_type == "Dev" ]
 then
     source setup_jenkins_and_chroot.sh
 else
     source setup_yunorunner.sh
-    setup_lxd
 fi
 
+setup_lxd
 configure_CI
 
 echo "Done!"

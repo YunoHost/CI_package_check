@@ -13,11 +13,8 @@ fi
 lock_CI="./CI.lock"
 lock_package_check="./package_check/pcheck.lock"
 
-CI_domain="$(grep DOMAIN= "./config" | cut --delimiter='=' --fields=2)"
-CI_path="$(grep CI_PATH= "./config" | cut --delimiter='=' --fields=2)"
 TIMEOUT="$(grep "^TIMEOUT=" "./config" | cut --delimiter="=" --fields=2)"
-
-CI_url="https://$CI_domain/$CI_path"
+CI_URL="https://$(grep "^CI_URL=" "./config" | cut --delimiter='=' --fields=2)"
 
 #=================================================
 # Delay the beginning of this script, to prevent concurrent executions
@@ -182,9 +179,9 @@ watchdog $! || exit 1
 cp "./package_check/Complete.log" "./logs/$complete_app_log"
 cp "./package_check/results.json" "./logs/$test_json_results"
 
-if [ -n "$CI_url" ]
+if [ -n "$CI_URL" ]
 then
-    full_log_path="$CI_url/logs/$complete_app_log"
+    full_log_path="$CI_URL/logs/$complete_app_log"
 else
     full_log_path="$(pwd)/logs/$complete_app_log"
 fi
@@ -222,7 +219,7 @@ else
 fi
 
 # FIXME : how to get the $id from yunorunner...
-message+=" on $CI_url/job/$id"
+message+=" on $CI_URL/job/$id"
 
 echo $message
 

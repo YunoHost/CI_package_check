@@ -1,6 +1,6 @@
 *.swp
 *~
-lib/badges
+badges/*.svg
 package_check/
 logs/
 config

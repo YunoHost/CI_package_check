@@ -10,9 +10,7 @@ script_dir="$(dirname $(realpath $0))"
 # DEFINE VARIABLES
 #=================================================
 
-ci_path=$(grep "CI_PATH=" "$script_dir/lib/auto.conf" | cut -d'=' -f2)
-domain=$(grep "DOMAIN=" "$script_dir/lib/auto.conf" | cut -d'=' -f2)
-jenkins_url=$domain/$ci_path
+jenkins_url=$(grep "CI_URL=" "$script_dir/config" | cut -d'=' -f2)
 jenkins_java_call="sudo java -jar /var/lib/jenkins/jenkins-cli.jar -ssh -user ynhci -noCertificateCheck -s https://$jenkins_url/ -i $script_dir/jenkins/jenkins_key"
 
 ssh_chroot_directory="/home/yunohost.app/ssh_chroot_directories"

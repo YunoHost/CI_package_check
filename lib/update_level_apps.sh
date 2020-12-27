@@ -4,7 +4,7 @@
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
 # Supprime le précédent clone de YunoHost/apps
-sudo rm -r "$script_dir/../../apps"	
+rm -r "$script_dir/../../apps"	
 
 # Récupère la dernière version de https://github.com/YunoHost/apps
 git clone -q git@github.com:YunoHost/apps.git "$script_dir/../../apps"	
