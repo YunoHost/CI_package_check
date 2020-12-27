@@ -165,7 +165,14 @@ echo "$(date) - Starting a test for $app on architecture $arch with yunohost $yn
 rm -f "$script_dir/package_check/Complete.log"
 rm -f "$script_dir/package_check/results.json"
 
-ARCH="$arch" YNH_BRANCH="$ynh_branch" nice --adjustment=10 "$script_dir/package_check/package_check.sh" "$repo" 2>&1 &
+# Here we use a weird trick with 'script -qefc'
+# The reason is that :
+# if running the command in background (with &) the corresponding command *won't be in a tty* (not sure exactly)
+# therefore later, the command lxc exec -t *won't be in a tty* (despite the -t) and command outputs will appear empty...
+# Instead, with the magic of script -qefc we can pretend to be in a tty somehow...
+# Adapted from https://stackoverflow.com/questions/32910661/pretend-to-be-a-tty-in-bash-for-any-command
+cmd="ARCH=\"$arch\" YNH_BRANCH=\"$ynh_branch\" nice --adjustment=10 \"$script_dir/package_check/package_check.sh\" \"$repo\" 2>&1"
+script -qefc "$cmd" &
 
 watchdog $! || exit 1
 
