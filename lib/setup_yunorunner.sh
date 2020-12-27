@@ -11,12 +11,6 @@ yunohost app install --force https://github.com/YunoHost-Apps/yunorunner_ynh_cor
 # Stop YunoRunner
 systemctl stop yunorunner
 
-# Set the type of CI if needed.
-if [ "$ci_type" = "Testing_Unstable" ]
-then
-    sed -i "s/^ExecStart.*/& -t testing-unstable/" /etc/systemd/system/yunorunner.service
-fi
-
 # Remove the original database, in order to rebuilt it with the new config.
 rm /var/www/yunorunner/db.sqlite
 

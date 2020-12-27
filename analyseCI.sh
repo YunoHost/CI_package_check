@@ -15,6 +15,8 @@ lock_package_check="./package_check/pcheck.lock"
 
 TIMEOUT="$(grep "^TIMEOUT=" "./config" | cut --delimiter="=" --fields=2)"
 CI_URL="https://$(grep "^CI_URL=" "./config" | cut --delimiter='=' --fields=2)"
+ynh_branch="$(grep "^YNH_BRANCH=" "./config" | cut --delimiter="=" --fields=2)"
+arch="$(grep "^ARCH=" "./config" | cut --delimiter="=" --fields=2)"
 
 #=================================================
 # Delay the beginning of this script, to prevent concurrent executions
@@ -71,34 +73,8 @@ test_name="$2"
 repo=$(echo $repo | cut --delimiter=';' --fields=1)
 app="$(echo $test_name | awk '{print $1}')"
 
-# Obviously that's too simple to have a unique nomenclature, so we have several of them
-architecture="$(echo $(expr match "$test_name" '.*\((~.*~)\)') | cut --delimiter='(' --fields=2 | cut --delimiter=')' --fields=1)"
-arch="amd64"
-if [ "$architecture" = "~x86-32b~" ]
-then
-    arch="i386"
-elif [ "$architecture" = "~ARM~" ]
-then
-    arch="armhf"
-fi
-
-ynh_branch="stable"
-log_dir=""
-if echo "$test_name" | grep --quiet "(testing)"
-then
-    local ynh_branch="testing"
-    log_dir="logs_$ynh_branch/"
-elif echo "$test_name" | grep --quiet "(unstable)"
-then
-    local ynh_branch="unstable"
-    log_dir="logs_$ynh_branch/"
-fi
-
-# From the repositery, remove http(s):// and replace all / by _ to build the log name
-log_name=${log_dir}$(echo "${repo#http*://}" | sed 's@[/ ]@_@g')$architecture
-# The complete log is the same of the previous log, with complete at the end.
-complete_app_log=${log_name}_complete.log
-test_json_results=${log_name}_results.json
+test_full_log=${app}_${arch}_${ynh_branch}_complete.log
+test_json_results=${app}_${arch}_${ynh_branch}_results.json
 
 xmpppost="./xmpp_bot/xmpp_post.sh"
 is_main_ci="false"
@@ -176,14 +152,14 @@ script -qefc "$cmd" &
 watchdog $! || exit 1
 
 # Copy the complete log
-cp "./package_check/Complete.log" "./logs/$complete_app_log"
+cp "./package_check/Complete.log" "./logs/$test_full_log"
 cp "./package_check/results.json" "./logs/$test_json_results"
 
 if [ -n "$CI_URL" ]
 then
-    full_log_path="$CI_URL/logs/$complete_app_log"
+    full_log_path="$CI_URL/logs/$test_full_log"
 else
-    full_log_path="$(pwd)/logs/$complete_app_log"
+    full_log_path="$(pwd)/logs/$test_full_log"
 fi
 
 echo "The complete log for this application was duplicated and is accessible at $full_log_path"

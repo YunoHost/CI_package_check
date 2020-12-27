@@ -26,17 +26,13 @@ ci_type=$3
 if [ -z "$ci_type" ]
 then
 	echo "Please choose the type of CI to build"
-	echo -e "\t1) Stable only"
-	echo -e "\t2) Testing and unstable"
-	echo -e "\t3) Dev"
-	echo -e "\t4) Next debian"
+	echo -e "\t1) Yunorunner"
+    echo -e "\t2) Dev (jenkins + chroots)"
 	read -p "?: " answer
 fi
 case $answer in
-	1) ci_type=Stable ;;
-	2) ci_type=Testing_Unstable ;;
-	3) ci_type=Dev ;;
-	4) ci_type=Next_debian ;;
+	1) ci_type=Regular ;;
+	2) ci_type=Dev ;;
 	*) echo "CI type not defined !"; exit 1
 esac
 
@@ -124,6 +120,8 @@ function configure_CI() {
    
     cat > "./config" <<EOF
 TIMEOUT=10800
+ARCH=amd64
+YNH_BRANCH=stable
 CI_TYPE=$ci_type
 CI_USER=$ci_user
 CI_URL=$domain/$ci_path
