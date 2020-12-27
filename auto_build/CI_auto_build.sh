@@ -10,6 +10,12 @@ log_build_auto_ci="$script_dir/Log_build_auto_ci.log"
 tee_to_log="tee -a $log_build_auto_ci 2>&1"
 default_ci_user=ynhci
 
+if [ $# -ne 2 ]
+then
+    echo "This script need to take in argument the domain and admin password for the yunohost installation."
+    exit 1
+fi
+
 # This script can get as argument the domain for jenkins, the admin password of YunoHost and the type of installation requested.
 # Domain for Jenkins
 domain=$1
@@ -212,20 +218,22 @@ SETUP_YUNORUNNER () {
 # SPECIFIC PART FOR YUNORUNNER (END)
 
 
+sudo apt-get update | $tee_to_log
+sudo apt-get install -y sudo git python3-pip lynx jq python-xmpp snapd | $tee_to_log
+
 # Install YunoHost
-echo_bold "> Check if YunoHost is already installed."
 if [ ! -e /usr/bin/yunohost ]
 then
 	echo_bold "> YunoHost isn't yet installed."
 	echo_bold "Installation of YunoHost..."
-	sudo apt-get update | $tee_to_log
-	sudo apt-get install -y sudo git | $tee_to_log
 	git clone https://github.com/YunoHost/install_script /tmp/install_script | $tee_to_log
 	cd /tmp/install_script; sudo ./install_yunohost -a | $tee_to_log
 
 	echo_bold "> YunoHost post install"
 	sudo yunohost tools postinstall --domain $domain --password $yuno_pwd
 fi
+
+echo_bold "> Disabling dnsmasq + allow port 67 on firewall to not interfere with LXD's DHCP"
 
 systemctl stop dnsmasq
 systemctl disable dnsmasq
@@ -247,12 +255,31 @@ then
 	sudo yunohost user create --firstname "$default_ci_user" --mail "$default_ci_user@$domain" --lastname "$default_ci_user" "$default_ci_user" --password $yuno_pwd
 fi
 
+
 # Installation of the CI software, which be used as the main interface.
 
-# Setting up of a CI software as a frontend.
-# To change the software, add a new function for it and replace the following call.
-# 	SETUP_JENKINS
+#SETUP_JENKINS
 SETUP_YUNORUNNER
+
+
+echo_bold "> Installing lxd..."
+
+snap install core
+snap install lxd
+
+ln -s /snap/bin/lxc /usr/local/bin/lxc
+ln -s /snap/bin/lxd /usr/local/bin/lxd
+
+lxd init --auto --storage-backend=btrfs # FIXME : add more than 5GB maybe for the storage
+
+usermod -a -G lxd yunorunner
+mkdir -p /home/yunorunner
+chown -R yunorunner /home/yunorunner
+
+# Stupid hack because somehow ipv6 is interfering
+echo "$(dig +short A devbaseimgs.yunohost.org | tail -n 1) devbaseimgs.yunohost.org" >> /etc/hosts
+
+su yunorunner -s /bin/bash -c "lxc remote add yunohost https://devbaseimgs.yunohost.org --public"
 
 
 # Build a config file
@@ -287,11 +314,15 @@ echo_bold "The config file has been built in $script_dir/auto.conf"
 
 # Installation of Package_check
 echo_bold "Installation of Package check with its CI script"
-"$script_dir/../build_CI.sh" | $tee_to_log
 
-# Put lock files to prevent any usage of package check during the installation.
-touch "$script_dir/../CI.lock" | $tee_to_log
-touch "$script_dir/../package_check/pcheck.lock" | $tee_to_log
+# Create the directory for logs
+mkdir -p "$script_dir/../logs"
+
+# Install Package check if it isn't an ARM only CI.
+git clone https://github.com/YunoHost/package_check "$script_dir/../package_check" -b cleanup-3 --single-branch
+
+# Build a config file
+cp "$script_dir/../config.modele" "$script_dir/../config"
 
 # Add cron for update the app list, and to modify the level of apps.
 echo_bold "Add cron tasks"
@@ -300,21 +331,13 @@ cat "$script_dir/CI_package_check_cron" >> "/etc/cron.d/CI_package_check"
 # Then set the path
 sudo sed -i "s@__PATH__@$script_dir@g" "/etc/cron.d/CI_package_check" | $tee_to_log
 
-
-
 echo_bold "Set the XMPP bot"
-sudo apt-get install python-xmpp | $tee_to_log
 git clone https://github.com/YunoHost/weblate2xmpp "$script_dir/xmpp_bot" | $tee_to_log
 sudo touch "$script_dir/xmpp_bot/password" | $tee_to_log
 sudo chmod 600 "$script_dir/xmpp_bot/password" | $tee_to_log
 echo "python \"$script_dir/xmpp_bot/to_room.py\" \$(sudo cat \"$script_dir/xmpp_bot/password\") \"\$@\" apps" \
 	> "$script_dir/xmpp_bot/xmpp_post.sh" | $tee_to_log
 sudo chmod +x "$script_dir/xmpp_bot/xmpp_post.sh" | $tee_to_log
-
-
-# Remove lock files
-sudo rm -f "$script_dir/../package_check/pcheck.lock" | $tee_to_log
-sudo rm -f "$script_dir/../CI.lock" | $tee_to_log
 
 # Disable list_app_ynh.sh for YunoRunner which doesn't need it.
 if [ "$ci_user" == "yunorunner" ]
@@ -326,25 +349,13 @@ else
 	then
 		echo_bold "Create jobs"
 		sudo "$script_dir/list_app_ynh.sh" | $tee_to_log
-	else
-		echo_bold "No build will be created now.
-First, please fill the file \"$script_dir/../config\" to add at least one ARM instance.
-Then, set ARM= to 1 in the config file \"$script_dir/auto.conf\"
-Finally, you can run $script_dir/list_app_ynh.sh to add new jobs."
 	fi
 fi
 
 # Download the badges to put in logs
 $script_dir/badges/get_badges.sh
 
-
-echo_bold "Check the access rights"
-if sudo su -l $ci_user -c "ls \"$script_dir\"" > /dev/null 2<&1
-then
-	echo -e "\e[92mAccess rights are good." | $tee_to_log
-else
-	echo -e "\e[91m$ci_user don't have access to the scripts !" | $tee_to_log
-fi
+chown -R $ci_user $script_dir
 
 echo ""
 echo -e "\e[92mThe file $script_dir/xmpp_bot/password needs to be provided with the xmpp bot password.\e[0m" | $tee_to_log

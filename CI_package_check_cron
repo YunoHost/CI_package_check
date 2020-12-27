@@ -1,2 +1,0 @@
-# Vérifie les mises à jour des scripts de CI, à 3h chaque nuit.
-0 3 * * * root "__PATH__/auto_upgrade.sh" >> "__PATH__/auto_upgrade.log" 2>&1

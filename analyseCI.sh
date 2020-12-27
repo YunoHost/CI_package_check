@@ -116,7 +116,7 @@ function watchdog() {
             current_timestamp="$(date +%s)"
             if [[ "$(($current_timestamp - $lock_timestamp))" -gt "$timeout" ]]
             then
-                kill -9 $package_check_pid
+                kill -s SIGTERM $package_check_pid
                 rm -f $lock_package_check
                 force_stop "Package check aborted, timeout reached ($(( $timeout / 60 )) min)."
                 return 1
