@@ -206,7 +206,7 @@ then
     app_level="$(jq -r ".level" "$script_dir/logs/$test_json_results")"
     cp "$script_dir/auto_build/badges/level${app_level}.svg" "$script_dir/logs/$app.svg"
     # Update/add the results from package_check in the public result list
-    jq --slurpfile results "$script_dir/logs/$test_json_results" ".\"$app\"=\$results" > $public_result_list.new
+    jq --slurpfile results "$script_dir/logs/$test_json_results" ".\"$app\"=\$results" $public_result_list > $public_result_list.new
     mv $public_result_list.new $public_result_list
 fi
 
