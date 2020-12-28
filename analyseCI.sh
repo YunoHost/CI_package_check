@@ -25,7 +25,7 @@ arch="$(grep "^ARCH=" "./config" | cut --delimiter="=" --fields=2)"
 # Get 3 ramdom digit. To build a value between 001 and 999
 milli_sleep=$(head --lines=20 /dev/urandom | tr --complement --delete '0-9' | head --bytes=3)
 # And wait for this value in millisecond
-sleep "0.$milli_sleep"
+sleep "10.$milli_sleep"
 
 #============================
 # Check / take the lock

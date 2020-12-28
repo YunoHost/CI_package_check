@@ -20,7 +20,6 @@ cat /dev/urandom | tr -dc _A-Za-z0-9 | head -c${1:-80} | tee /var/www/yunorunner
 # Reboot YunoRunner to consider the configuration
 echo_bold "> Reboot YunoRunner..."
 systemctl daemon-reload
-systemctl restart yunorunner
 
 # Put YunoRunner as the default app on the root of the domain
 yunohost app makedefault -d "$domain" yunorunner

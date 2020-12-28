@@ -154,6 +154,7 @@ install_dependencies
 source lib/setup_yunorunner.sh
 
 if [ $ci_type == "Dev" ]
+then
     # Installation de ssh_chroot_dir
     yunohost app install --force https://github.com/YunoHost-Apps/ssh_chroot_dir_ynh -a "ssh_user=base_user&password=""&pub_key=fake_key&size=1G"
 
@@ -169,3 +170,5 @@ configure_CI
 echo "Done!"
 echo " "
 echo "N.B. : The file ./xmpp_bot/password needs to be provided with the xmpp bot password."
+echo ""
+echo "When you're ready to start the CI, run:    systemctl restart $ci_user"
