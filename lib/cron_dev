@@ -1,5 +1,0 @@
-# Vérifie toutes les 5 minutes si une nouvelle app a été ajoutée.
-*/5 * * * * root "/home/CI_package_check/lib_dev/ci_scan_jobs.sh" >> "/home/CI_package_check/lib_dev/add_apps.log" 2>&1
-
-# Supprime les apps retirées ou trop anciennes chaque nuit.
-5 4 * * * root "/home/CI_package_check/lib_dev/ci_clean_jobs.sh" >> "/home/CI_package_check/lib_dev/remove_apps.log" 2>&1
