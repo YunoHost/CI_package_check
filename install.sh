@@ -82,7 +82,7 @@ function setup_yunohost() {
     echo -e "\n127.0.0.1 $domain	#CI_APP" >> /etc/hosts
 
     echo_bold "> Disabling unecessary services to save up RAM"
-    for SERVICE in rspamd mysql php7.3-fpm metronome
+    for SERVICE in mysql php7.3-fpm metronome rspamd dovecot postfix redis-server postsrsd yunohost-api avahi-daemon
     do
         systemctl stop $SERVICE
         systemctl disable $SERVICE --quiet
