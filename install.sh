@@ -80,6 +80,13 @@ function setup_yunohost() {
 
     # Idk why this is needed but wokay I guess >_>
     echo -e "\n127.0.0.1 $domain	#CI_APP" >> /etc/hosts
+
+    echo_bold "> Disabling unecessary services to save up RAM"
+    for SERVICE in rspamd mysql php7.3-fpm metronome
+    do
+        systemctl stop $SERVICE
+        systemctl disable $SERVICE --quiet
+    done
 }
 
 function setup_lxd() {
