@@ -212,3 +212,5 @@ mv $public_result_list.new $public_result_list
 
 # Annnd we're done !
 echo "$(date) - Test completed"
+
+[ "$app_level" -gt 0 ] && exit 0 || exit 1
