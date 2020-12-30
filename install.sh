@@ -32,6 +32,11 @@ case $answer in
 	*) echo "CI type not defined !"; exit 1
 esac
 
+# User which execute the CI software.
+ci_user=yunorunner
+# Web path of the CI
+ci_path=ci
+
 echo_bold () {
 	echo -e "\e[1m$1\e[0m"
 }
@@ -89,6 +94,33 @@ function setup_yunohost() {
     done
 }
 
+function setup_yunorunner() {
+    echo_bold "> Installation of YunoRunner..."
+    yunohost app install --force https://github.com/YunoHost-Apps/yunorunner_ynh_core -a "domain=$domain&path=/$ci_path"
+
+    # Stop YunoRunner
+    # to be started manually by the admin after the CI_package_check install
+    # finishes
+    systemctl stop yunorunner
+
+    # Remove the original database, in order to rebuilt it with the new config.
+    rm -f /var/www/yunorunner/db.sqlite
+
+    # Create a random token for ciclic
+    cat /dev/urandom | tr -dc _A-Za-z0-9 | head -c${1:-80} | tee /var/www/yunorunner/token /var/www/yunorunner/tokens
+
+    # Reboot YunoRunner to consider the configuration
+    echo_bold "> Reboot YunoRunner..."
+    systemctl daemon-reload
+
+    # Put YunoRunner as the default app on the root of the domain
+    yunohost app makedefault -d "$domain" yunorunner
+
+    # Add an access to badges in the nginx config
+    sed -i "s@^}$@\n\tlocation /$ci_path/badges/ {\n\t\talias /home/CI_package_check/badges/;\n\t\tautoindex on;\n\t}\n}@" /etc/nginx/conf.d/$domain.d/yunorunner.conf
+    systemctl reload nginx
+}
+
 function setup_lxd() {
 
     echo_bold "> Disabling dnsmasq + allow port 67 on firewall to not interfere with LXD's DHCP"
@@ -120,6 +152,12 @@ function setup_lxd() {
     su $ci_user -s /bin/bash -c "lxc remote add yunohost https://devbaseimgs.yunohost.org --public"
 }
 
+function setup_chrootdirs() {
+    # Installation de ssh_chroot_dir
+    # FIXME : ain't an issue that the password is empty here ...?
+    yunohost app install --force https://github.com/YunoHost-Apps/ssh_chroot_dir_ynh -a "ssh_user=base_user&password=&pub_key=fake_key&size=1G"
+}
+
 function configure_CI() {
     echo_bold "> Configuring the CI..."
    
@@ -134,15 +172,15 @@ EOF
 
     # Cron tasks
     cat >>  "/etc/cron.d/CI_package_check" << EOF
-# Autoupgrade every night
-0 3 * * * root "/home/CI_package_check/auto_upgrade.sh" >> "/home/CI_package_check/auto_upgrade.log" 2>&1
+# self-upgrade every night
+0 3 * * * root "/home/CI_package_check/lib/self_upgrade.sh" >> "/home/CI_package_check/lib/self_upgrade.log" 2>&1
 EOF
     
     if [ $ci_type == "Dev" ]
     then
     cat >>  "/etc/cron.d/CI_package_check" << EOF
-# Vérifie toutes les 5 minutes si une nouvelle app a été ajoutée.
-*/5 * * * * root "/home/CI_package_check/lib/dev_ci_scan_jobs.sh" >> "/home/CI_package_check/lib/dev_ci_scan_jobs.log" 2>&1
+# Vérifie toutes les 1 minutes si une nouvelle app a été ajoutée.
+*/1 * * * * root "/home/CI_package_check/lib/dev_ci/scan_for_new_jobs_from_chroots.sh" >> "/home/CI_package_check/lib/dev_ci/scan_for_new_jobs_from_chroots.log" 2>&1
 EOF
     fi
 
@@ -158,18 +196,9 @@ install_dependencies
 
 [ -e /usr/bin/yunohost ] || setup_yunohost
 
-source lib/setup_yunorunner.sh
+setup_yunorunner
 
-if [ $ci_type == "Dev" ]
-then
-    # Installation de ssh_chroot_dir
-    yunohost app install --force https://github.com/YunoHost-Apps/ssh_chroot_dir_ynh -a "ssh_user=base_user&password=""&pub_key=fake_key&size=1G"
-
-    # Créer un lien symbolique pour un accès facile à chroot_manager
-    ln -sf /home/yunohost.app/ssh_chroot_directories/chroot_manager ./chroot_manager
-    # Et à l'ajout d'utilisateur.
-    ln -sf "lib_dev/Add_a_new_user.sh" ./Add_a_new_user.sh
-fi
+[ $ci_type == "Dev" ] && setup_chrootdirs
 
 setup_lxd
 configure_CI

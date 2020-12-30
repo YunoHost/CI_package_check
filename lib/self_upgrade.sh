@@ -20,7 +20,7 @@ then
 	echo "Postpone this upgrade to 30min later..."
 
 	# Postpone this script 30 minutes later
-	echo "/home/CI_package_check/auto_upgrade.sh" | at now + 30 min
+	echo "/home/CI_package_check/lib/self_upgrade.sh" | at now + 30 min
 
 	exit 0
 fi
