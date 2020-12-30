@@ -115,10 +115,6 @@ function setup_yunorunner() {
 
     # Put YunoRunner as the default app on the root of the domain
     yunohost app makedefault -d "$domain" yunorunner
-
-    # Add an access to badges in the nginx config
-    sed -i "s@^}$@\n\tlocation /$ci_path/badges/ {\n\t\talias /home/CI_package_check/badges/;\n\t\tautoindex on;\n\t}\n}@" /etc/nginx/conf.d/$domain.d/yunorunner.conf
-    systemctl reload nginx
 }
 
 function setup_lxd() {
