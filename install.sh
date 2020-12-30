@@ -109,9 +109,15 @@ function setup_yunorunner() {
     # Create a random token for ciclic
     cat /dev/urandom | tr -dc _A-Za-z0-9 | head -c${1:-80} | tee /var/www/yunorunner/token /var/www/yunorunner/tokens
 
-    # Reboot YunoRunner to consider the configuration
-    echo_bold "> Reboot YunoRunner..."
-    systemctl daemon-reload
+    # For Dev CI, we want to control the job scheduling entirely
+    # (c.f. the scan_for_new_jobs_from_chroots cron job)
+    if [ $ci_type == "Dev" ]
+    then
+        # Ideally this could be handled via a config file in yunorunner rather
+        # than having to tweak the systemd service ...
+        sed -i "s/^ExecStart.*/& --dont-monitor-apps-list --dont-monitor-git --no-monthly-jobs/" /etc/systemd/system/yunorunner.service
+        systemctl daemon-reload
+    fi
 
     # Put YunoRunner as the default app on the root of the domain
     yunohost app makedefault -d "$domain" yunorunner
