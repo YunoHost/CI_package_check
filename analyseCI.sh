@@ -76,7 +76,7 @@ app="$(echo $test_name | awk '{print $1}')"
 test_full_log=${app}_${arch}_${ynh_branch}_complete.log
 test_json_results=${app}_${arch}_${ynh_branch}_results.json
 
-xmpppost="./xmpp_bot/xmpp_post.sh"
+xmpp_notify="./lib/xmpp_notify.py"
 is_main_ci="false"
 if [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]]
 then
@@ -124,7 +124,7 @@ function force_stop() {
     echo -e "\e[91m\e[1m!!! $message !!!\e[0m"
     if [[ $is_main_ci == "true" ]]
     then
-        "$xmpppost" "While testing $app: $message"
+        "$xmpp_notify" "While testing $app: $message"
     fi
 
     ARCH="$arch" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
@@ -202,7 +202,7 @@ echo $message
 # Send XMPP notification
 if [[ "$is_main_ci" == "true" ]]
 then
-    [ -e "$xmpppost" ] && "$xmpppost" "$message"
+    [ -e "$xmpp_notify" ] && "$xmpp_notify" "$message"
     cp "./badges/level${app_level}.svg" "./logs/$app.svg"
 fi
 

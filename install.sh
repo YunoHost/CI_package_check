@@ -47,7 +47,8 @@ function install_dependencies() {
 
     echo_bold "> Installing dependencies..."
     apt-get update
-    apt-get install -y curl wget git python3-pip lynx jq python-xmpp snapd
+    apt-get install -y curl wget git python3-pip lynx jq snapd
+    pip3 install xmpppy
     
     # Install Package check if it isn't an ARM only CI.
     git clone https://github.com/YunoHost/package_check "./package_check" -b cleanup-3 --single-branch
@@ -57,15 +58,6 @@ function install_dependencies() {
 
     # Create the directory for logs
     mkdir -p "./logs"
-
-    # XMPP script
-    mkdir -p "./xmpp_bot"
-    wget https://raw.githubusercontent.com/YunoHost/weblate2xmpp/master/to_room.py -O ./xmpp_bot/
-    touch "./xmpp_bot/password"
-    chmod 600 "./xmpp_bot/password"
-    echo 'python /home/CI_package_check/xmpp_bot/to_room.py "$(cat /home/CI_package_check/xmpp_bot/password)" "$@" apps' \
-        > "./xmpp_bot/xmpp_post.sh"
-    chmod +x "./xmpp_bot/xmpp_post.sh"
 }
 
 function setup_yunohost() {
@@ -207,6 +199,6 @@ configure_CI
 
 echo "Done!"
 echo " "
-echo "N.B. : The file ./xmpp_bot/password needs to be provided with the xmpp bot password."
+echo "N.B. : The file ./.xmpp_password needs to be provided with the xmpp bot password."
 echo ""
 echo "When you're ready to start the CI, run:    systemctl restart $ci_user"
