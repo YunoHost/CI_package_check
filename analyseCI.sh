@@ -36,14 +36,17 @@ then
     lock_CI_PID="$(cat $lock_CI)"
     if [ -n "$lock_CI_PID" ]
     then
-        if ps --pid $lock_CI_PID | grep --quiet $lock_CI_PID
+	# We check that the corresponding PID is still running AND that the PPid is not 1 ..
+	# If the PPid is 1, it tends to indicate that a previous analyseCI is still running and was not killed, and therefore got adopted by init.
+	# This typically happens when the job is cancelled / restarted .. though we should have a better way of handling cancellation from yunorunner directly :/
+        if ps --pid $lock_CI_PID | grep --quiet $lock_CI_PID && [[ $(grep PPid /proc/${lock_CI_PID}/status | awk '{print $2}') != "1" ]]
         then
             echo -e "\e[91m\e[1m!!! Another analyseCI process is currently using the lock !!!\e[0m"
             exit 1
-        else
-            echo "Stale lock detected, removing it"
         fi
     fi
+    [[ $(grep PPid /proc/$(lock_CI_PID)/status | awk '{print $2}') != "1" ]] && { echo "Killing stale analyseCI process ..."; kill -s SIGTERM $lock_CI_PID; sleep 30; }
+    echo "Removing stale lock"
     rm -f $lock_CI
 fi
 
@@ -56,6 +59,12 @@ echo "$$" > $lock_CI
 function cleanup()
 {
     rm $lock_CI
+
+    if [ -n "$package_check_pid" ]
+    then
+        kill -s SIGTERM $package_check_pid
+        ARCH="$arch" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
+    fi
 }
 
 trap cleanup EXIT
