@@ -131,7 +131,7 @@ function setup_lxd() {
     ln -s /snap/bin/lxc /usr/local/bin/lxc
     ln -s /snap/bin/lxd /usr/local/bin/lxd
 
-    lxd init --auto --storage-backend=btrfs # FIXME : add more than 5GB maybe for the storage
+    lxd init --auto --storage-backend=dir
 
     # ci_user will be the one launching job, gives it permission to run lxd commands
     usermod -a -G lxd $ci_user
