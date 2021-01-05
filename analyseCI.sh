@@ -182,7 +182,7 @@ echo ""
 #=================================================
 
 public_result_list="./logs/list_level_${ynh_branch}_$arch.json"
-[ -e "$public_result_list" ] || echo "{}" > "$public_result_list"
+[ -s "$public_result_list" ] || echo "{}" > "$public_result_list"
 
 # Get new level and previous level
 app_level="$(jq -r ".level" "./logs/$test_json_results")"
@@ -216,7 +216,7 @@ then
 fi
 
 # Update/add the results from package_check in the public result list
-jq --slurpfile results "./logs/$test_json_results" ".\"$app\"=\$results" $public_result_list > $public_result_list.new
+jq --argfile results "./logs/$test_json_results" ".\"$app\"=\$results" $public_result_list > $public_result_list.new
 mv $public_result_list.new $public_result_list
 
 # Annnd we're done !
