@@ -74,10 +74,10 @@ trap 'exit 2' TERM KILL
 # Test parameters
 #=============================
 
-# Repository
 repo="$1"
-# Test name
 test_name="$2"
+job_id="$3"
+
 # Keep only the repositery
 repo=$(echo $repo | cut --delimiter=';' --fields=1)
 app="$(echo $test_name | awk '{print $1}')"
@@ -203,8 +203,7 @@ else
     message+="stays at level $app_level"
 fi
 
-# FIXME : how to get the $id from yunorunner...
-message+=" on $CI_URL/job/$id"
+message+=" on $CI_URL/job/$job_id"
 
 echo $message
 
