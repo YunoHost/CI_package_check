@@ -51,4 +51,4 @@ ssh-copy-id -i pcheckCI_key.pub login@server
 ```
 
 The config file must be adapted according to the remote machines used.  
-For each architecture to be tested in SSH, you must replace `Instance = LOCAL` by `Instance = SSH` and enter the SSH connection information.
+For each architecture to be tested in SSH, you must replace `Instance=LOCAL` by `Instance=SSH` and enter the SSH connection information.
