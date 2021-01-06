@@ -1,52 +1,54 @@
-Intégration Continue (CI) avec Package check pour YunoHost
-==================
+# Continuous Integration (CI) with Package check for YunoHost
 
-[Yunohost project](https://yunohost.org/#/)
+[YunoHost project](https://yunohost.org/#/)
 
-Petit ensemble de script pour interfacer tout logiciel d'intégration continue avec [Package check](https://github.com/YunoHost/package_check).
+Small scripts set to interface any continuous integration software with [Package_check](https://github.com/YunoHost/package_check).
 
 ## Usage:
-Indiquer simplement dans la tâche du logiciel de CI le script `analyseCI.sh` ainsi que le dépôt git à tester et le nom du test.
+
+Simply indicate in the CI software task the `analyzeCI.sh` script as well as the Git repository to test and a test name.
 ```bash
-/PATH/analyseCI.sh "https://github.com/YunoHost-Apps/APP_ynh" "Nom du test"
+/PATH/analyseCI.sh "https://github.com/YunoHost-Apps/APP_ynh" "Test name"
 ```
 
-## Fonctionnement:
-Le script `pcheckCI.sh` est lancé toutes les 5 minutes par la tâche cron.  
-Si un dépôt git est indiqué dans le fichier `work_list`, il est testé à l'aide de Package_check et le dépôt est retiré de la liste.
+## How it works:
 
-Le résultat du test est stocké dans le dossier `logs`.
+`pcheckCI.sh` script is started every 5 minutes by the cron job.
+If a Git repository is specified in the `work_list` file, it is tested using Package_check and the repository is removed from the list.
 
-Le script `analyseCI.sh` est utilisé par le logiciel de CI qui surveille les dépôts git. Lorsqu'il est lancé, il ajoute le dépôt à tester à la suite du fichier `work_list`.  
-Il attend le test de son package, puis interprète le résultat contenu dans le log pour savoir si le test à échoué ou non.
+The test result is stored in the `logs` folder.
+
+The `analyzeCI.sh` script is used by CI software which monitors Git repositories. When it is launched, it adds the repository to test after the `work_list` file.
+It waits for the test of its package, then interprets the result contained in the log to know if the test failed or not.
 
 ---
-Ce contournement du logiciel de CI à 2 raison d'être.  
+There are two reasons for bypassing the CI software.
 
-- D'une part, il permet de ne pas être dépendant d'un seul logiciel. En l'occurence, les scripts ont été conçus pour Jenkins, mais peuvent être utilisé par n'importe quel logiciel.
-- D'autre part, il résoud le problème des droits administrateurs nécessités par certaines actions de Package_check. Le logiciel de CI garde ses droits d'exécution normaux, seul le script `pcheckCI.sh` est exécuté avec les droits root par la tâche cron.
+- It makes it possible not to be dependent on a single software. In this case, the scripts were designed for Jenkins, but can be used by any software.
+- It solves the problem of administrator rights required by certain actions of Package_check. The CI software keeps its normal execution rights, only the `pcheckCI.sh` script is executed with root rights by the cron job.
 
 ---
 ## Utilisation de machines distantes:
-Pour tester les packages sur diverses architectures processeur, il est possible d'utiliser des machines distantes en ssh pour exécuter d'autres instance de Package check.
-La machine distante doit disposer d'une instance fonctionnelle de CI_package_check
 
-Pour utiliser les architectures il faut tout d'abord ajouter au nom du test le nom de l'architecture à tester. Le nom du test est le 2e argument à donner à `analyseCI.sh`  
-Les arguments supportés pour les architectures sont:
+To test the packages on various processor architectures, it is possible to use remote SSH machines to run other Package check instances.  
+The remote machine must have a functional instance of CI_package_check
+
+To use the architectures, you must first add the name of the architecture to be tested to the name of the test. The name of the test is the 2nd argument to give to `analyzeCI.sh`  
+The arguments supported for the architectures are:
 
 - `(~x86-64b~)`
 - `(~x86-32b~)`
 - `(~ARM~)`
-Ce qui donne par exemple
+Which gives for example
 ```bash
-/PATH/analyseCI.sh "https://github.com/YunoHost-Apps/APP_ynh" "Nom du test (~x86-64b~)"
+/PATH/analyseCI.sh "https://github.com/YunoHost-Apps/APP_ynh" "Test name (~x86-64b~)"
 ```
 
-Les machines distantes seront utilisée en ssh, elles nécessiteront un accès ssh avec une clé publique sans passphrase.
+Remote machines will be used in SSH, they will require SSH access with a public key without passphrase.
 ```
 ssh-keygen -t rsa -b 4096 -N "" -f "pcheckCI_key"
 ssh-copy-id -i pcheckCI_key.pub login@server
 ```
 
-Le fichier de config doit être adapté selon les machines distantes utilisées.  
-Pour chaque architecture à tester en ssh, il faut remplacer `Instance=LOCAL` par `Instance=SSH` et renseigner les informations de connexion ssh.
+The config file must be adapted according to the remote machines used.  
+For each architecture to be tested in SSH, you must replace `Instance = LOCAL` by` Instance = SSH` and enter the SSH connection information.
