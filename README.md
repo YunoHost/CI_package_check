@@ -18,7 +18,7 @@ If a Git repository is specified in the `work_list` file, it is tested using Pac
 
 The test result is stored in the `logs` folder.
 
-The `analyzeCI.sh` script is used by CI software which monitors Git repositories. When it is launched, it adds the repository to test after the `work_list` file.
+`analyzeCI.sh` script is used by CI software which monitors Git repositories. When it is launched, it adds the repository to test after the `work_list` file.
 It waits for the test of its package, then interprets the result contained in the log to know if the test failed or not.
 
 ---
@@ -44,11 +44,11 @@ Which gives for example
 /PATH/analyseCI.sh "https://github.com/YunoHost-Apps/APP_ynh" "Test name (~x86-64b~)"
 ```
 
-Remote machines will be used in SSH, they will require SSH access with a public key without passphrase.
+Remote machines will be connected via SSH, they will require SSH access with a public key without passphrase.
 ```
 ssh-keygen -t rsa -b 4096 -N "" -f "pcheckCI_key"
 ssh-copy-id -i pcheckCI_key.pub login@server
 ```
 
 The config file must be adapted according to the remote machines used.  
-For each architecture to be tested in SSH, you must replace `Instance = LOCAL` by` Instance = SSH` and enter the SSH connection information.
+For each architecture to be tested in SSH, you must replace `Instance = LOCAL` by `Instance = SSH` and enter the SSH connection information.
