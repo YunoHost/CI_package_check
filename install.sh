@@ -140,9 +140,6 @@ function setup_lxd() {
     mkdir -p /home/$ci_user
     chown -R $ci_user /home/$ci_user
 
-    # Stupid hack because somehow ipv6 is interfering
-    echo "$(dig +short A devbaseimgs.yunohost.org | tail -n 1) devbaseimgs.yunohost.org" >> /etc/hosts
-
     su $ci_user -s /bin/bash -c "lxc remote add yunohost https://devbaseimgs.yunohost.org --public"
 }
 
