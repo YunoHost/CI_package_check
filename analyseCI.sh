@@ -4,7 +4,7 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 
 cd $script_dir
 
-if [ $# -ne 2 ]
+if [ $# -ne 3 ]
 then
     echo "This script need to take in argument the package which be tested and the name of the test."
     exit 1
