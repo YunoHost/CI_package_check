@@ -54,7 +54,7 @@ function install_dependencies() {
     git clone https://github.com/YunoHost/package_check "./package_check" -b cleanup-3 --single-branch
 
     # Download the app badges
-    ./lib/get_badges.sh
+    ./badges/get_badges.sh
 
     # Create the directory for logs
     mkdir -p "./logs"
