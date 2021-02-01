@@ -47,7 +47,7 @@ function install_dependencies() {
 
     echo_bold "> Installing dependencies..."
     apt-get update
-    apt-get install -y curl wget git python3-pip lynx jq snapd
+    apt-get install -y curl wget git python3-pip lynx jq
     pip3 install xmpppy
     
     # Install Package check if it isn't an ARM only CI.
@@ -99,7 +99,7 @@ function setup_yunorunner() {
     rm -f /var/www/yunorunner/db.sqlite
 
     # Create a random token for ciclic
-    cat /dev/urandom | tr -dc _A-Za-z0-9 | head -c${1:-80} | tee /var/www/yunorunner/token /var/www/yunorunner/tokens
+    cat /dev/urandom | tr -dc _A-Za-z0-9 | head -c80 | tee /var/www/yunorunner/token /var/www/yunorunner/tokens > /dev/null
 
     # For Dev CI, we want to control the job scheduling entirely
     # (c.f. the scan_for_new_jobs_from_chroots cron job)
@@ -123,13 +123,87 @@ function setup_lxd() {
     systemctl disable dnsmasq
     yunohost firewall allow Both 67
 
-    echo_bold "> Installing lxd..."
+    echo_bold "> Installing go..."
 
-    snap install core
-    snap install lxd
+    wget https://golang.org/dl/go1.15.7.linux-amd64.tar.gz -O /tmp/go1.15.7.linux-amd64.tar.gz 2>/dev/null
+    tar -C /opt/ -xzf /tmp/go1.15.7.linux-amd64.tar.gz
+    
+    export PATH=/opt/go/bin:$PATH
 
-    ln -s /snap/bin/lxc /usr/local/bin/lxc
-    ln -s /snap/bin/lxd /usr/local/bin/lxd
+    echo_bold "> Installing lxd dependencies..."
+
+    apt install acl autoconf dnsmasq-base git libacl1-dev libcap-dev liblxc1 lxc-dev libsqlite3-dev libtool libudev-dev libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils ebtables libapparmor-dev libseccomp-dev libcap-dev
+
+    echo_bold "> Building lxd..."
+
+    local lxd_version="4.10"
+    local lxd_path="/opt/lxd-${lxd_version}"
+    wget https://github.com/lxc/lxd/releases/download/lxd-${lxd_version}/lxd-${lxd_version}.tar.gz -O /tmp/lxd-${lxd_version}.tar.gz 2>/dev/null
+    tar -C /opt/ -xzf /tmp/lxd-${lxd_version}.tar.gz
+
+    export GOPATH=${lxd_path}/_dist
+
+    pushd ${lxd_path}
+    make deps
+    export CGO_CFLAGS="-I${GOPATH}/deps/raft/include/ -I${GOPATH}/deps/dqlite/include/"
+    export CGO_LDFLAGS="-L${GOPATH}/deps/raft/.libs -L${GOPATH}/deps/dqlite/.libs/"
+    export LD_LIBRARY_PATH="${GOPATH}/deps/raft/.libs/:${GOPATH}/deps/dqlite/.libs/"
+    export CGO_LDFLAGS_ALLOW="-Wl,-wrap,pthread_create"
+    cd $GOPATH/src/github.com/lxc/lxd
+    make
+
+    mkdir -p /usr/local/lib/lxd
+    cp -a ${GOPATH}/deps/{raft,dqlite}/.libs/lib*.so* /usr/local/lib/lxd/
+    cp ${GOPATH}/bin/{lxc,lxd} /usr/local/bin
+    echo "/usr/local/lib/lxd/" > /etc/ld.so.conf.d/lxd.conf
+    ldconfig
+
+    echo "[Unit]
+Description=LXD Container Hypervisor
+After=network-online.target
+Requires=network-online.target lxd.socket
+Documentation=man:lxd(1)
+
+[Service]
+Environment=LXD_OVMF_PATH=/usr/share/ovmf/x64
+ExecStart=/usr/local/bin/lxd --group=lxd --logfile=/var/log/lxd/lxd.log
+ExecStartPost=/usr/local/bin/lxd waitready --timeout=600
+ExecStop=/usr/local/bin/lxd shutdown
+TimeoutStartSec=600s
+TimeoutStopSec=30s
+Restart=on-failure
+LimitNOFILE=1048576
+LimitNPROC=infinity
+LimitCORE=infinity
+TasksMax=infinity
+Delegate=yes
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target" > /etc/systemd/system/lxd.service
+
+    echo "[Unit]
+Description=LXD - unix socket
+
+[Socket]
+ListenStream=/var/lib/lxd/unix.socket
+SocketMode=0660
+SocketGroup=lxd
+Service=lxd.service
+
+[Install]
+WantedBy=sockets.target" > /etc/systemd/system/lxd.socket
+
+    groupadd lxd
+
+    mkdir -p /var/log/lxd
+
+    systemctl daemon-reload
+    systemctl enable --now lxd
+    popd
+    rm -r /opt/go ${lxd_path}
+
+    echo_bold "> Configuring lxd..."
 
     lxd init --auto --storage-backend=dir
 
@@ -140,7 +214,7 @@ function setup_lxd() {
     mkdir -p /home/$ci_user
     chown -R $ci_user /home/$ci_user
 
-    su $ci_user -s /bin/bash -c "lxc remote add yunohost https://devbaseimgs.yunohost.org --public"
+    su $ci_user -s /bin/bash -c "lxc remote add yunohost https://devbaseimgs.yunohost.org --public --accept-certificate"
 }
 
 function setup_chrootdirs() {
