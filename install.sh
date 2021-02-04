@@ -2,9 +2,20 @@
 
 cd "$(dirname $(realpath $0))"
 
-if [ $# -ne 2 ]
+if [ $# -ne 3 ]
 then
-    echo "This script need to take in argument the domain and admin password for the yunohost installation."
+    cat << EOF
+Usage: ./install.sh some.domain.tld SecretAdminPasswurzd! [auto|manual]
+
+1st and 2nd arguments are for yunohost postinstall
+  - domain
+  - admin password
+
+3rd argument is the CI type (scheduling strategy):
+  - auto means job will automatically be scheduled by yunorunner from apps.json etc.
+  - manual means job will be scheduled manually (e.g. via webhooks or yunorunner ciclic)
+
+EOF
     exit 1
 fi
 
@@ -14,23 +25,9 @@ then
     exit 1
 fi
 
-
-# This script can get as argument the domain for yunorunner, the admin password of YunoHost and the type of installation requested.
 domain=$1
 yuno_pwd=$2
 ci_type=$3
-if [ -z "$ci_type" ]
-then
-	echo "Please choose the type of CI to build"
-    echo -e "\t1) Regular (jobs from apps.json, etc..)"
-    echo -e "\t2) Dev (jobs from ssh chroots folders)"
-	read -p "?: " answer
-fi
-case $answer in
-	1) ci_type=Regular ;;
-	2) ci_type=Dev ;;
-	*) echo "CI type not defined !"; exit 1
-esac
 
 # User which execute the CI software.
 ci_user=yunorunner
@@ -102,7 +99,7 @@ function setup_yunorunner() {
 
     # For Dev CI, we want to control the job scheduling entirely
     # (c.f. the scan_for_new_jobs_from_chroots cron job)
-    if [ $ci_type == "Dev" ]
+    if [ $ci_type == "auto" ]
     then
         # Ideally this could be handled via a config file in yunorunner rather
         # than having to tweak the systemd service ...
@@ -216,12 +213,6 @@ WantedBy=sockets.target" > /etc/systemd/system/lxd.socket
     su $ci_user -s /bin/bash -c "lxc remote add yunohost https://devbaseimgs.yunohost.org --public --accept-certificate"
 }
 
-function setup_chrootdirs() {
-    # Installation de ssh_chroot_dir
-    # FIXME : ain't an issue that the password is empty here ...?
-    yunohost app install --force https://github.com/YunoHost-Apps/ssh_chroot_dir_ynh -a "ssh_user=base_user&password=&pub_key=fake_key&size=1G"
-}
-
 function configure_CI() {
     echo_bold "> Configuring the CI..."
    
@@ -240,14 +231,6 @@ EOF
 0 3 * * * root "/home/CI_package_check/lib/self_upgrade.sh" >> "/home/CI_package_check/lib/self_upgrade.log" 2>&1
 EOF
     
-    if [ $ci_type == "Dev" ]
-    then
-    cat >>  "/etc/cron.d/CI_package_check" << EOF
-# Vérifie toutes les 1 minutes si une nouvelle app a été ajoutée.
-*/1 * * * * root "/home/CI_package_check/lib/dev_ci/scan_for_new_jobs_from_chroots.sh" >> "/home/CI_package_check/lib/dev_ci/scan_for_new_jobs_from_chroots.log" 2>&1
-EOF
-    fi
-
     # Add permission to the user for the entire CI_package_check because it'll be the one running the tests (as a non-root user)
     chown -R $ci_user ./
 }
@@ -261,14 +244,12 @@ install_dependencies
 [ -e /usr/bin/yunohost ] || setup_yunohost
 
 setup_yunorunner
-
-[ $ci_type == "Dev" ] && setup_chrootdirs
-
 setup_lxd
 configure_CI
 
 echo "Done!"
 echo " "
-echo "N.B. : The file ./.xmpp_password needs to be provided with the xmpp bot password."
+echo "N.B. : The file ./.xmpp_password needs to be provided with the xmpp bot password to enable notifications."
+echo "You may also want to tweak the 'config' file to run test with a different branch / arch"
 echo ""
 echo "When you're ready to start the CI, run:    systemctl restart $ci_user"
