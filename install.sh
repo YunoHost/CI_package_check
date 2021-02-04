@@ -50,8 +50,7 @@ function install_dependencies() {
     apt-get install -y curl wget git python3-pip lynx jq
     pip3 install xmpppy
     
-    # Install Package check if it isn't an ARM only CI.
-    git clone https://github.com/YunoHost/package_check "./package_check" -b cleanup-3 --single-branch
+    git clone https://github.com/YunoHost/package_check "./package_check"
 
     # Download the app badges
     ./badges/get_badges.sh
