@@ -1,7 +1,5 @@
 #!/bin/bash
 
-date
-
 #=================================================
 # Grab the script directory
 #=================================================
@@ -65,9 +63,8 @@ then
             maintain_badge=$maintained
         fi
 
-        mkdir -p "$script_dir/../badges"
-        cp "$script_dir/badges/$state_badge.svg" "$script_dir/../badges/${app}.status.svg"
-        cp "$script_dir/badges/$maintain_badge.svg" "$script_dir/../badges/${app}.maintain.svg"
+        cp "/home/CI_package_check/badges/$state_badge.svg" "/home/CI_package_check/badges/${app}.status.svg"
+        cp "/home/CI_package_check/badges/$maintain_badge.svg" "/home/CI_package_check/badges/${app}.maintain.svg"
 
     # List all apps from the list, by getting manifest ID.
     done <<< "$(jq --raw-output ".[] | .manifest.id" "$script_dir/apps.json")"

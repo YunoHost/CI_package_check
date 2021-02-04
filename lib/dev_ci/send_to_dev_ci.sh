@@ -29,7 +29,7 @@ SEND_TO_CI () {
     rsync -avzhuE -c --progress --delete --exclude=".git" "${1%/}" -e "ssh -i $ssh_key -p $ssh_port -o ControlPath=$SSHSOCKET"  $ssh_user@$ssh_host:"$distant_dir/"
     echo "============="
     echo "Build should show up here once it starts:"
-    echo "https://$ssh_host/jenkins/view/$ssh_user/job/$(basename "${1%/}")%20($ssh_user)/lastBuild/console"
+    echo "https://$ssh_host/ci/"
 }
 
 echo "Opening connection"
