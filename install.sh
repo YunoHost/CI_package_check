@@ -113,26 +113,37 @@ function setup_yunorunner() {
 
 function setup_lxd() {
 
-    echo_bold "> Disabling dnsmasq + allow port 67 on firewall to not interfere with LXD's DHCP"
+    local go_version="1.15.8"
+    local lxd_version="4.10"
 
-    systemctl stop dnsmasq
-    systemctl disable dnsmasq
+    echo_bold "> Configure dnsmasq + allow port 67 on firewall to not interfere with LXD's DHCP"
+
+    echo "bind-interfaces
+except-interface=lxdbr0" > /etc/dnsmasq.d/lxd
     yunohost firewall allow Both 67
+    systemctl restart dnsmasq
 
     echo_bold "> Installing go..."
 
-    wget https://golang.org/dl/go1.15.7.linux-amd64.tar.gz -O /tmp/go1.15.7.linux-amd64.tar.gz 2>/dev/null
-    tar -C /opt/ -xzf /tmp/go1.15.7.linux-amd64.tar.gz
+    # Use the right go architecture.
+    local arch=get_arch
+    if [ "$arch" = "armhf" ]; then
+        arch="armv6l"
+    elif [ "$arch" = "aarch64" ]; then
+        arch="arm64"
+    fi
+
+    wget https://golang.org/dl/go$go_version.linux-$arch.tar.gz -O /tmp/go$go_version.linux-$arch.tar.gz 2>/dev/null
+    tar -C /opt/ -xzf /tmp/go$go_version.linux-$arch.tar.gz
     
     export PATH=/opt/go/bin:$PATH
 
     echo_bold "> Installing lxd dependencies..."
 
-    apt install acl autoconf dnsmasq-base git libacl1-dev libcap-dev liblxc1 lxc-dev libsqlite3-dev libtool libudev-dev libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils ebtables libapparmor-dev libseccomp-dev libcap-dev
+    apt install -y acl autoconf dnsmasq-base git libacl1-dev libcap-dev liblxc1 lxc-dev libsqlite3-dev libtool libudev-dev libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils ebtables libapparmor-dev libseccomp-dev libcap-dev
 
     echo_bold "> Building lxd..."
 
-    local lxd_version="4.10"
     local lxd_path="/opt/lxd-${lxd_version}"
     wget https://github.com/lxc/lxd/releases/download/lxd-${lxd_version}/lxd-${lxd_version}.tar.gz -O /tmp/lxd-${lxd_version}.tar.gz 2>/dev/null
     tar -C /opt/ -xzf /tmp/lxd-${lxd_version}.tar.gz
@@ -190,6 +201,8 @@ Service=lxd.service
 [Install]
 WantedBy=sockets.target" > /etc/systemd/system/lxd.socket
 
+    echo "root:1000000:65536" | sudo tee -a /etc/subuid /etc/subgid
+
     groupadd lxd
 
     mkdir -p /var/log/lxd
@@ -218,7 +231,7 @@ function configure_CI() {
    
     cat > "./config" <<EOF
 TIMEOUT=10800
-ARCH=amd64
+ARCH=$(get_arch)
 YNH_BRANCH=stable
 CI_TYPE=$ci_type
 CI_USER=$ci_user
@@ -233,6 +246,27 @@ EOF
     
     # Add permission to the user for the entire CI_package_check because it'll be the one running the tests (as a non-root user)
     chown -R $ci_user ./
+}
+
+#=================================================
+# GET HOST ARCHITECTURE
+#=================================================
+
+function get_arch()
+{
+    local architecture
+    if uname -m | grep -q "arm64" || uname -m | grep -q "aarch64"; then
+        architecture="aarch64"
+    elif uname -m | grep -q "64"; then
+        architecture="amd64"
+    elif uname -m | grep -q "86"; then
+        architecture="i386"
+    elif uname -m | grep -q "arm"; then
+        architecture="armhf"
+    else
+        architecture="unknown"
+    fi
+    echo $architecture
 }
 
 # =========================
