@@ -99,7 +99,7 @@ function setup_yunorunner() {
 
     # For Dev CI, we want to control the job scheduling entirely
     # (c.f. the scan_for_new_jobs_from_chroots cron job)
-    if [ $ci_type == "auto" ]
+    if [ $ci_type == "manual" ]
     then
         # Ideally this could be handled via a config file in yunorunner rather
         # than having to tweak the systemd service ...
