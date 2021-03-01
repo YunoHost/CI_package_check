@@ -97,14 +97,28 @@ function setup_yunorunner() {
     # Create a random token for ciclic
     cat /dev/urandom | tr -dc _A-Za-z0-9 | head -c80 | tee /var/www/yunorunner/token /var/www/yunorunner/tokens > /dev/null
 
-    # For Dev CI, we want to control the job scheduling entirely
-    # (c.f. the scan_for_new_jobs_from_chroots cron job)
-    if [ $ci_type == "manual" ]
+    # For automatic / "main" CI we want to auto schedule jobs using the app list
+    if [ $ci_type == "auto" ]
     then
-        # Ideally this could be handled via a config file in yunorunner rather
-        # than having to tweak the systemd service ...
-        sed -i "s/^ExecStart.*/& --dont-monitor-apps-list --dont-monitor-git --no-monthly-jobs/" /etc/systemd/system/yunorunner.service
-        systemctl daemon-reload
+        cat >/var/www/yunorunner/config.py <<EOF
+BASE_URL = "https://$domain/$ci_path"
+PATH_TO_ANALYZER = "/home/CI_package_check/analyseCI.sh"
+MONITOR_APPS_LIST = True
+MONITOR_GIT = True
+MONITOR_ONLY_GOOD_QUALITY_APPS = False
+MONTHLY_JOBS = True
+EOF
+    # For Dev CI, we want to control the job scheduling entirely
+    # (c.f. the github webhooks or scan_for_new_jobs_from_chroots cron job)
+    else
+        cat >/var/www/yunorunner/config.py <<EOF
+BASE_URL = "https://$domain/$ci_path"
+PATH_TO_ANALYZER = "/home/CI_package_check/analyseCI.sh"
+MONITOR_APPS_LIST = False
+MONITOR_GIT = False
+MONITOR_ONLY_GOOD_QUALITY_APPS = False
+MONTHLY_JOBS = False
+EOF
     fi
 
     # Put YunoRunner as the default app on the root of the domain
