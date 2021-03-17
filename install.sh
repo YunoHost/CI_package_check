@@ -140,7 +140,7 @@ except-interface=lxdbr0" > /etc/dnsmasq.d/lxd
     echo_bold "> Installing go..."
 
     # Use the right go architecture.
-    local arch=get_arch
+    local arch=$(get_arch)
     if [ "$arch" = "armhf" ]; then
         arch="armv6l"
     elif [ "$arch" = "aarch64" ]; then
