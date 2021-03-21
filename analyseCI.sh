@@ -84,6 +84,7 @@ app="$(echo $test_name | awk '{print $1}')"
 
 test_full_log=${app}_${arch}_${ynh_branch}_complete.log
 test_json_results=${app}_${arch}_${ynh_branch}_results.json
+test_url="$CI_URL/job/$job_id"
 
 xmpp_notify="./lib/xmpp_notify.py"
 is_main_ci="false"
@@ -122,7 +123,7 @@ function watchdog() {
 
     if [ ! -e "./package_check/results.json" ]
     then
-        force_stop "It looks like package_check did not finish properly ..."
+        force_stop "It looks like package_check did not finish properly ... on $test_url"
         return 1
     fi
 }
@@ -206,7 +207,7 @@ else
     message+="stays at level $app_level"
 fi
 
-message+=" on $CI_URL/job/$job_id"
+message+=" on $test_url"
 
 echo $message
 
