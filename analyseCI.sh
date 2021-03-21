@@ -184,6 +184,9 @@ echo ""
 public_result_list="./logs/list_level_${ynh_branch}_$arch.json"
 [ -s "$public_result_list" ] || echo "{}" > "$public_result_list"
 
+# Check that we have a valid json...
+jq -e '' "./logs/$test_json_results" >/dev/null 2>/dev/null && bad_json="false" || bad_json="true"
+
 # Get new level and previous level
 app_level="$(jq -r ".level" "./logs/$test_json_results")"
 previous_level="$(jq -r ".$app" "$public_result_list")"
@@ -191,7 +194,7 @@ previous_level="$(jq -r ".$app" "$public_result_list")"
 # We post message on XMPP if we're running for tests on stable/amd64
 message="Application $app "
 
-if [ "$app_level" -eq 0 ]; then
+if [ "$bad_json" == "true" ] || [ "$app_level" -eq 0 ]; then
     message+="completely failed the continuous integration tests"
 elif [ -z "$previous_level" ]; then
     message+="just reached level $app_level !"
@@ -215,8 +218,11 @@ then
 fi
 
 # Update/add the results from package_check in the public result list
-jq --argfile results "./logs/$test_json_results" ".\"$app\"=\$results" $public_result_list > $public_result_list.new
-mv $public_result_list.new $public_result_list
+if [ "$bad_json" == "false" ]
+then
+    jq --argfile results "./logs/$test_json_results" ".\"$app\"=\$results" $public_result_list > $public_result_list.new
+    mv $public_result_list.new $public_result_list
+fi
 
 # Annnd we're done !
 echo "$(date) - Test completed"
