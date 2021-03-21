@@ -18,6 +18,14 @@ CI_URL="https://$(grep "^CI_URL=" "./config" | cut --delimiter='=' --fields=2)"
 ynh_branch="$(grep "^YNH_BRANCH=" "./config" | cut --delimiter="=" --fields=2)"
 arch="$(grep "^ARCH=" "./config" | cut --delimiter="=" --fields=2)"
 
+# Enable xmpp notifications only on main CI
+if [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]] && [[ -e "./lib/xmpp_notify.py" ]]
+then
+    xmpp_notify="./lib/xmpp_notify.py"
+else
+    xmpp_notify="true" # 'true' is a dummy program that won't do anything
+fi
+
 #=================================================
 # Delay the beginning of this script, to prevent concurrent executions
 #=================================================
@@ -42,6 +50,7 @@ then
         if ps --pid $lock_CI_PID | grep --quiet $lock_CI_PID && [[ $(grep PPid /proc/${lock_CI_PID}/status | awk '{print $2}') != "1" ]]
         then
             echo -e "\e[91m\e[1m!!! Another analyseCI process is currently using the lock !!!\e[0m"
+            "$xmpp_notify" "CI miserably crashed because another process is using the lock"
             exit 1
         fi
     fi
@@ -86,13 +95,6 @@ test_full_log=${app}_${arch}_${ynh_branch}_complete.log
 test_json_results=${app}_${arch}_${ynh_branch}_results.json
 test_url="$CI_URL/job/$job_id"
 
-xmpp_notify="./lib/xmpp_notify.py"
-is_main_ci="false"
-if [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]]
-then
-    is_main_ci="true"
-fi
-
 # Make sure /usr/local/bin is in the path, because that's where the lxc/lxd bin lives
 export PATH=$PATH:/usr/local/bin
 
@@ -132,10 +134,8 @@ function force_stop() {
     local message="$1"
 
     echo -e "\e[91m\e[1m!!! $message !!!\e[0m"
-    if [[ $is_main_ci == "true" ]]
-    then
-        "$xmpp_notify" "While testing $app: $message"
-    fi
+
+    "$xmpp_notify" "While testing $app: $message"
 
     ARCH="$arch" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
 }
@@ -212,11 +212,10 @@ message+=" on $test_url"
 echo $message
 
 # Send XMPP notification
-if [[ "$is_main_ci" == "true" ]]
-then
-    [ -e "$xmpp_notify" ] && "$xmpp_notify" "$message"
-    cp "./badges/level${app_level}.svg" "./logs/$app.svg"
-fi
+"$xmpp_notify" "$message"
+
+# Update badge
+cp "./badges/level${app_level}.svg" "./logs/$app.svg"
 
 # Update/add the results from package_check in the public result list
 if [ "$bad_json" == "false" ]
