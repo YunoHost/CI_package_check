@@ -23,12 +23,12 @@ do
     # Get the level from the stable+amd64 tests
     level="$(jq -r ".\"$APP\".level" "$public_result_list")"
     # Inject the new level value to apps.json
-    jq --args $level ".\"$APP\".level=\$level" apps.json > apps.json.new
+    jq --sort-keys --indent 4 --arg APP $APP --argjson level $level '.[$APP].level=$level' apps.json > apps.json.new
     mv apps.json.new apps.json
 done
 
 # Affiche les changements (2 lignes de contexte suffisent à voir l'app)
-git diff -U2 --raw
+# git diff -U2 --raw
 # Ajoute les modifications des listes au prochain commit
 git add --all *.json
 git commit -q -m "Update app's level" 
