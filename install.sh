@@ -256,6 +256,12 @@ EOF
     cat >>  "/etc/cron.d/CI_package_check" << EOF
 # self-upgrade every night
 0 3 * * * root "/home/CI_package_check/lib/self_upgrade.sh" >> "/home/CI_package_check/lib/self_upgrade.log" 2>&1
+
+# Update app list
+0 20 * * 5 root "/home/CI_package_check/lib/update_level_apps.sh" >> "/home/CI_package_check/lib/update_level_apps.log" 2>&1
+
+# Update badges
+0 20 * * 5 root "/home/CI_package_check/lib/update_badges.sh" >> "/home/CI_package_check/lib/update_badges.log" 2>&1
 EOF
     
     # Add permission to the user for the entire CI_package_check because it'll be the one running the tests (as a non-root user)
