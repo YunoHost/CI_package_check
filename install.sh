@@ -84,7 +84,7 @@ function setup_yunohost() {
 
 function setup_yunorunner() {
     echo_bold "> Installation of YunoRunner..."
-    yunohost app install --force https://github.com/YunoHost-Apps/yunorunner_ynh_core -a "domain=$domain&path=/$ci_path"
+    yunohost app install --force https://github.com/YunoHost-Apps/yunorunner_ynh -a "domain=$domain&path=/$ci_path"
 
     # Stop YunoRunner
     # to be started manually by the admin after the CI_package_check install
