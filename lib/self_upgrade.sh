@@ -33,6 +33,6 @@ fi
 git fetch origin --quiet
 
 # If already up to date, don't do anything else
-[[ $(git rev-parse HEAD) == $(git rev-parse origin/master) ]] && return
+[[ $(git rev-parse HEAD) == $(git rev-parse origin/master) ]] && exit
 
 git reset --hard origin/master --quiet
