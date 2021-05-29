@@ -69,7 +69,7 @@ function setup_yunohost() {
     # What is it used for :| ...
     echo_bold "> Create Yunohost CI user"
     local ynh_ci_user=ynhci
-    yunohost user create --firstname "$ynh_ci_user" --mail "$ynh_ci_user@$domain" --lastname "$ynh_ci_user" "$ynh_ci_user" --password $yuno_pwd
+    yunohost user create --firstname "$ynh_ci_user" --domain "$domain" --lastname "$ynh_ci_user" "$ynh_ci_user" --password $yuno_pwd
 
     # Idk why this is needed but wokay I guess >_>
     echo -e "\n127.0.0.1 $domain	#CI_APP" >> /etc/hosts
