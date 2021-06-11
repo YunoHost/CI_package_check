@@ -3,6 +3,9 @@
 # Récupère le dossier du script
 if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
+# Only run this on the true main, official CI, prevent instances from packagers to push weird stuff
+grep -q "^CI_URL=ci-apps.yunohost.org" "./config" || exit 0
+
 # Supprime le précédent clone de YunoHost/apps
 rm -r "$script_dir/../../apps"	
 
