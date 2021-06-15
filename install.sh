@@ -126,7 +126,9 @@ EOF
 }
 
 function setup_lxd() {
-    yunohost app install --force https://github.com/YunoHost-Apps/lxd_ynh
+    if ! yunohost app list | grep -q 'id: lxd'; then
+        yunohost app install --force https://github.com/YunoHost-Apps/lxd_ynh
+    fi
 
     echo_bold "> Configuring lxd..."
 
