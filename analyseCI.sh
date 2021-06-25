@@ -17,6 +17,7 @@ TIMEOUT="$(grep "^TIMEOUT=" "./config" | cut --delimiter="=" --fields=2)"
 CI_URL="https://$(grep "^CI_URL=" "./config" | cut --delimiter='=' --fields=2)"
 ynh_branch="$(grep "^YNH_BRANCH=" "./config" | cut --delimiter="=" --fields=2)"
 arch="$(grep "^ARCH=" "./config" | cut --delimiter="=" --fields=2)"
+dist="$(grep "^DIST=" "./config" | cut --delimiter="=" --fields=2)"
 
 # Enable xmpp notifications only on main CI
 if [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]] && [[ -e "./lib/xmpp_notify.py" ]]
@@ -72,7 +73,7 @@ function cleanup()
     if [ -n "$package_check_pid" ]
     then
         kill -s SIGTERM $package_check_pid
-        ARCH="$arch" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
+        ARCH="$arch" DIST="$dist" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
     fi
 }
 
@@ -137,7 +138,7 @@ function force_stop() {
 
     "$xmpp_notify" "While testing $app: $message"
 
-    ARCH="$arch" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
+    ARCH="$arch" DIST="$dist" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
 }
 
 #=================================================
@@ -145,7 +146,7 @@ function force_stop() {
 #=================================================
 
 # Exec package check according to the architecture
-echo "$(date) - Starting a test for $app on architecture $arch with yunohost $ynh_branch"
+echo "$(date) - Starting a test for $app on architecture $arch distribution $dist with yunohost $ynh_branch"
 
 rm -f "./package_check/Complete.log"
 rm -f "./package_check/results.json"
@@ -156,7 +157,7 @@ rm -f "./package_check/results.json"
 # therefore later, the command lxc exec -t *won't be in a tty* (despite the -t) and command outputs will appear empty...
 # Instead, with the magic of script -qefc we can pretend to be in a tty somehow...
 # Adapted from https://stackoverflow.com/questions/32910661/pretend-to-be-a-tty-in-bash-for-any-command
-cmd="ARCH=$arch YNH_BRANCH=$ynh_branch nice --adjustment=10 './package_check/package_check.sh' '$repo' 2>&1"
+cmd="ARCH=$arch DIST=$dist YNH_BRANCH=$ynh_branch nice --adjustment=10 './package_check/package_check.sh' '$repo' 2>&1"
 script -qefc "$cmd" &
 
 watchdog $! || exit 1
