@@ -23,6 +23,10 @@ public_result_list="$script_dir/../logs/list_level_stable_amd64.json"
 # For each app in the result file
 for APP in $(jq -r 'keys[]' "$public_result_list")
 do
+    # Check if the app is still in the list
+    if ! jq -r 'keys[]' "apps.json" | grep -qw $APP; then
+        continue
+    fi
     # Get the level from the stable+amd64 tests
     level="$(jq -r ".\"$APP\".level" "$public_result_list")"
     # Inject the new level value to apps.json
