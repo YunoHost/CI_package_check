@@ -165,6 +165,8 @@ watchdog $! || exit 1
 # Copy the complete log
 cp "./package_check/Complete.log" "./logs/$test_full_log"
 cp "./package_check/results.json" "./logs/$test_json_results"
+mkdir -p "./summary/"
+[ ! -e "./package_check/summary.jpg" ] || cp "./package_check/summary.jpg" "./summary/${job_id}.jpg"
 
 if [ -n "$CI_URL" ]
 then
