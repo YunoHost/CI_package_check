@@ -4,14 +4,15 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 
 cd $script_dir
 
-if [ $# -ne 3 ]
+if [ $# -ne 4 ]
 then
-    echo "This script need to take in argument the package which be tested and the name of the test."
+    echo "This script need to take in argument the package which be tested, the name of the test, and the ID of the worker."
     exit 1
 fi
 
-lock_CI="./CI.lock"
-lock_package_check="./package_check/pcheck.lock"
+worker_id="$4"
+lock_CI="./CI-${worker_id}.lock"
+lock_package_check="./package_check/pcheck-${worker_id}.lock"
 
 TIMEOUT="$(grep "^TIMEOUT=" "./config" | cut --delimiter="=" --fields=2)"
 CI_URL="https://$(grep "^CI_URL=" "./config" | cut --delimiter='=' --fields=2)"
@@ -50,7 +51,7 @@ then
 	# This typically happens when the job is cancelled / restarted .. though we should have a better way of handling cancellation from yunorunner directly :/
         if ps --pid $lock_CI_PID | grep --quiet $lock_CI_PID && [[ $(grep PPid /proc/${lock_CI_PID}/status | awk '{print $2}') != "1" ]]
         then
-            echo -e "\e[91m\e[1m!!! Another analyseCI process is currently using the lock !!!\e[0m"
+            echo -e "\e[91m\e[1m!!! Another analyseCI process is currently using the lock $lock_CI !!!\e[0m"
             "$xmpp_notify" "CI miserably crashed because another process is using the lock"
             exit 1
         fi
@@ -73,12 +74,12 @@ function cleanup()
     if [ -n "$package_check_pid" ]
     then
         kill -s SIGTERM $package_check_pid
-        ARCH="$arch" DIST="$dist" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
+        WORKER_ID="$worker_id" ARCH="$arch" DIST="$dist" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
     fi
 }
 
 trap cleanup EXIT
-trap 'exit 2' TERM KILL
+trap 'exit 2' TERM
 
 #============================
 # Test parameters
@@ -124,7 +125,7 @@ function watchdog() {
         fi
     done
 
-    if [ ! -e "./package_check/results.json" ]
+    if [ ! -e "./package_check/results-$worker_id.json" ]
     then
         force_stop "It looks like package_check did not finish properly ... on $test_url"
         return 1
@@ -138,7 +139,7 @@ function force_stop() {
 
     "$xmpp_notify" "While testing $app: $message"
 
-    ARCH="$arch" DIST="$dist" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
+    WORKER_ID="$worker_id" ARCH="$arch" DIST="$dist" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
 }
 
 #=================================================
@@ -148,8 +149,8 @@ function force_stop() {
 # Exec package check according to the architecture
 echo "$(date) - Starting a test for $app on architecture $arch distribution $dist with yunohost $ynh_branch"
 
-rm -f "./package_check/Complete.log"
-rm -f "./package_check/results.json"
+rm -f "./package_check/Complete-$worker_id.log"
+rm -f "./package_check/results-$worker_id.json"
 
 # Here we use a weird trick with 'script -qefc'
 # The reason is that :
@@ -157,14 +158,14 @@ rm -f "./package_check/results.json"
 # therefore later, the command lxc exec -t *won't be in a tty* (despite the -t) and command outputs will appear empty...
 # Instead, with the magic of script -qefc we can pretend to be in a tty somehow...
 # Adapted from https://stackoverflow.com/questions/32910661/pretend-to-be-a-tty-in-bash-for-any-command
-cmd="ARCH=$arch DIST=$dist YNH_BRANCH=$ynh_branch nice --adjustment=10 './package_check/package_check.sh' '$repo' 2>&1"
+cmd="WORKER_ID=$worker_id ARCH=$arch DIST=$dist YNH_BRANCH=$ynh_branch nice --adjustment=10 './package_check/package_check.sh' '$repo' 2>&1"
 script -qefc "$cmd" &
 
 watchdog $! || exit 1
 
 # Copy the complete log
-cp "./package_check/Complete.log" "./logs/$test_full_log"
-cp "./package_check/results.json" "./logs/$test_json_results"
+cp "./package_check/Complete-$worker_id.log" "./logs/$test_full_log"
+cp "./package_check/results-$worker_id.json" "./logs/$test_json_results"
 mkdir -p "./summary/"
 [ ! -e "./package_check/summary.png" ] || cp "./package_check/summary.png" "./summary/${job_id}.png"
 
