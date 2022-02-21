@@ -85,6 +85,7 @@ function setup_yunohost() {
 function setup_yunorunner() {
     echo_bold "> Installation of YunoRunner..."
     yunohost app install --force https://github.com/YunoHost-Apps/yunorunner_ynh -a "domain=$domain&path=/$ci_path"
+    port=$(yunohost app setting yunorunner port)
 
     # Stop YunoRunner
     # to be started manually by the admin after the CI_package_check install
@@ -102,6 +103,7 @@ function setup_yunorunner() {
     then
         cat >/var/www/yunorunner/config.py <<EOF
 BASE_URL = "https://$domain/$ci_path"
+PORT = $port
 PATH_TO_ANALYZER = "/home/CI_package_check/analyseCI.sh"
 MONITOR_APPS_LIST = True
 MONITOR_GIT = True
@@ -113,6 +115,7 @@ EOF
     else
         cat >/var/www/yunorunner/config.py <<EOF
 BASE_URL = "https://$domain/$ci_path"
+PORT = $port
 PATH_TO_ANALYZER = "/home/CI_package_check/analyseCI.sh"
 MONITOR_APPS_LIST = False
 MONITOR_GIT = False
