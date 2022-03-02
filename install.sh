@@ -195,6 +195,7 @@ cluster:
 EOF
         cat ./preseed.conf | lxd init --preseed
         rm ./preseed.conf
+        lxc config set core.https_address [::]
     else
         lxd init --auto --storage-backend=dir
     fi
