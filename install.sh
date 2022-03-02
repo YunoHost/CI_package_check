@@ -16,7 +16,8 @@ Usage: ./install.sh some.domain.tld SecretAdminPasswurzd! [auto|manual] [cluster
   - manual means job will be scheduled manually (e.g. via webhooks or yunorunner ciclic)
 
 4th argument is to build the first node of an lxc cluster
- - you will be abble to add nodes to the lxc cluster providing some.domain.tld as 9999 and SecretAdminPasswurzd! as 999
+ - lxd cluster will be created with the current server
+ - some.domain.tld will be the cluster hostname and SecretAdminPasswurzd! the trust password to join the cluster
 
 EOF
     exit 1
