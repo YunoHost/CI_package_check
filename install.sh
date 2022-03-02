@@ -5,7 +5,7 @@ cd "$(dirname $(realpath $0))"
 if [ $# -ne 3 ]
 then
     cat << EOF
-Usage: ./install.sh some.domain.tld SecretAdminPasswurzd! [auto|manual]
+Usage: ./install.sh some.domain.tld SecretAdminPasswurzd! [auto|manual] [cluster]
 
 1st and 2nd arguments are for yunohost postinstall
   - domain
@@ -14,6 +14,9 @@ Usage: ./install.sh some.domain.tld SecretAdminPasswurzd! [auto|manual]
 3rd argument is the CI type (scheduling strategy):
   - auto means job will automatically be scheduled by yunorunner from apps.json etc.
   - manual means job will be scheduled manually (e.g. via webhooks or yunorunner ciclic)
+
+4th argument is to build the first node of an lxc cluster
+ - you will be abble to add nodes to the lxc cluster providing some.domain.tld as 9999 and SecretAdminPasswurzd! as 999
 
 EOF
     exit 1
@@ -28,6 +31,7 @@ fi
 domain=$1
 yuno_pwd=$2
 ci_type=$3
+lxd_cluster=$4
 
 # User which execute the CI software.
 ci_user=yunorunner
@@ -135,7 +139,64 @@ function setup_lxd() {
 
     echo_bold "> Configuring lxd..."
 
-    lxd init --auto --storage-backend=dir
+    if [ $lxd_cluster == "cluster" ]
+    then
+        local free_space=$(df --output=avail / | sed 1d)
+        local btrfs_size=$(( $free_space * 90 / 100 / 1024 / 1024 ))
+        local lxc_network=$((1 + $RANDOM % 254))
+
+        yunohost firewall allow TCP 8443
+        cat >./preseed.conf <<EOF
+config:
+  cluster.https_address: $domain:8443
+  core.https_address: ${domain}:8443
+  core.trust_password: ${yuno_pwd}
+networks:
+- config:
+    ipv4.address: 192.168.${lxc_network}.1/24
+    ipv4.nat: "true"
+    ipv6.address: none
+  description: ""
+  name: lxdbr0
+  type: bridge
+  project: default
+storage_pools:
+- config:
+    size: ${btrfs_size}GB
+    source: /var/lib/lxd/disks/local.img
+  description: ""
+  name: local
+  driver: btrfs
+profiles:
+- config: {}
+  description: Default LXD profile
+  devices:
+    lxdbr0:
+      nictype: bridged
+      parent: lxdbr0
+      type: nic
+    root:
+      path: /
+      pool: local
+      type: disk
+  name: default
+projects:
+- config:
+    features.images: "true"
+    features.networks: "true"
+    features.profiles: "true"
+    features.storage.volumes: "true"
+  description: Default LXD project
+  name: default
+cluster:
+  server_name: ${domain}
+  enabled: true
+EOF
+        cat ./preseed.conf | lxd init --preseed
+        rm ./preseed.conf
+    else
+        lxd init --auto --storage-backend=dir
+    fi
 
     # ci_user will be the one launching job, gives it permission to run lxd commands
     usermod -a -G lxd $ci_user
