@@ -114,6 +114,7 @@ MONITOR_APPS_LIST = True
 MONITOR_GIT = True
 MONITOR_ONLY_GOOD_QUALITY_APPS = False
 MONTHLY_JOBS = True
+WORKER_COUNT = 1
 EOF
     # For Dev CI, we want to control the job scheduling entirely
     # (c.f. the github webhooks or scan_for_new_jobs_from_chroots cron job)
@@ -126,6 +127,7 @@ MONITOR_APPS_LIST = False
 MONITOR_GIT = False
 MONITOR_ONLY_GOOD_QUALITY_APPS = False
 MONTHLY_JOBS = False
+WORKER_COUNT = 1
 EOF
     fi
 
