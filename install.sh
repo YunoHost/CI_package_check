@@ -248,7 +248,7 @@ function get_arch()
 {
     local architecture
     if uname -m | grep -q "arm64" || uname -m | grep -q "aarch64"; then
-        architecture="aarch64"
+        architecture="arm64"
     elif uname -m | grep -q "64"; then
         architecture="amd64"
     elif uname -m | grep -q "86"; then
