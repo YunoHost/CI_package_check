@@ -146,7 +146,7 @@ function setup_lxd() {
 
     echo_bold "> Configuring lxd..."
 
-    if [ $lxd_cluster == "cluster" ]
+    if [ "$lxd_cluster" == "cluster" ]
     then
         local free_space=$(df --output=avail / | sed 1d)
         local btrfs_size=$(( $free_space * 90 / 100 / 1024 / 1024 ))
