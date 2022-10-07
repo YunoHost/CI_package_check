@@ -2,7 +2,7 @@
 
 cd "$(dirname $(realpath $0))"
 
-if [ $# < 3 ]
+if (( $# < 3 ))
 then
     cat << EOF
 Usage: ./install.sh some.domain.tld SecretAdminPasswurzd! [auto|manual] [cluster]
