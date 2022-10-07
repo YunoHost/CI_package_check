@@ -166,6 +166,8 @@ watchdog $! || exit 1
 # Copy the complete log
 cp "./package_check/Complete-$worker_id.log" "./logs/$test_full_log"
 cp "./package_check/results-$worker_id.json" "./logs/$test_json_results"
+rm -f "./package_check/Complete-$worker_id.log"
+rm -f "./package_check/results-$worker_id.json"
 mkdir -p "./summary/"
 [ ! -e "./package_check/summary.png" ] || cp "./package_check/summary.png" "./summary/${job_id}.png"
 
