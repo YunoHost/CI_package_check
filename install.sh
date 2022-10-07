@@ -2,7 +2,7 @@
 
 cd "$(dirname $(realpath $0))"
 
-if [ $# < 3 ]
+if (( $# < 3 ))
 then
     cat << EOF
 Usage: ./install.sh some.domain.tld SecretAdminPasswurzd! [auto|manual] [cluster]
@@ -89,7 +89,10 @@ function setup_yunohost() {
 
 function setup_yunorunner() {
     echo_bold "> Installation of YunoRunner..."
-    yunohost app install --force https://github.com/YunoHost-Apps/yunorunner_ynh -a "domain=$domain&path=/$ci_path"
+    if ! yunohost app list --output-as json --quiet | jq -e '.apps[] | select(.id == "yunorunner")' >/dev/null
+    then
+        yunohost app install --force https://github.com/YunoHost-Apps/yunorunner_ynh -a "domain=$domain&path=/$ci_path"
+    fi
     port=$(yunohost app setting yunorunner port)
 
     # Stop YunoRunner
@@ -136,13 +139,14 @@ EOF
 }
 
 function setup_lxd() {
-    if ! yunohost app list | grep -q 'id: lxd'; then
+    if ! yunohost app list --output-as json --quiet | jq -e '.apps[] | select(.id == "lxd")' >/dev/null
+    then
         yunohost app install --force https://github.com/YunoHost-Apps/lxd_ynh
     fi
 
     echo_bold "> Configuring lxd..."
 
-    if [ $lxd_cluster == "cluster" ]
+    if [ "$lxd_cluster" == "cluster" ]
     then
         local free_space=$(df --output=avail / | sed 1d)
         local btrfs_size=$(( $free_space * 90 / 100 / 1024 / 1024 ))
