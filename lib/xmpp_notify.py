@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import sys
+import os
 import xmpp
 from contextlib import contextmanager
 
@@ -55,7 +56,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     message = sys.argv[1]
-    password = open("/home/CI_package_check/.xmpp_password").read().strip()
+    password = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../.xmpp_password")).read().strip()
     room = "apps"
 
     with XMPPBot(password, room=room) as bot:

@@ -4,7 +4,7 @@
 # Grab the script directory
 #=================================================
 
-script_dir="$(dirname $(realpath $0))"
+if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
 
 #=================================================
 # Get the list and check for any modifications
@@ -63,8 +63,8 @@ then
             maintain_badge=$maintained
         fi
 
-        cp "/home/CI_package_check/badges/$state_badge.svg" "/home/CI_package_check/badges/${app}.status.svg"
-        cp "/home/CI_package_check/badges/$maintain_badge.svg" "/home/CI_package_check/badges/${app}.maintain.svg"
+        cp "$script_dir/badges/$state_badge.svg" "$script_dir/badges/${app}.status.svg"
+        cp "$script_dir/badges/$maintain_badge.svg" "$script_dir/badges/${app}.maintain.svg"
 
     # List all apps from the list, by getting manifest ID.
     done <<< "$(jq --raw-output ".apps[] | .manifest.id" "$script_dir/apps.json")"
