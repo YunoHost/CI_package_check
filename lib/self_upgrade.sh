@@ -6,7 +6,9 @@
 # Grab the script directory
 #=================================================
 
-cd /home/CI_package_check
+if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(echo $PWD/$(dirname "$0" | cut -d '.' -f2) | sed 's@/$@@')"; fi
+
+cd $script_dir
 
 #=================================================
 # Check the lock file before continuing
@@ -20,7 +22,7 @@ then
 	echo "Postpone this upgrade to 30min later..."
 
 	# Postpone this script 30 minutes later
-	echo "/home/CI_package_check/lib/self_upgrade.sh" | at now + 30 min
+	echo "$script_dir/lib/self_upgrade.sh" | at now + 30 min
 
 	exit 0
 fi
