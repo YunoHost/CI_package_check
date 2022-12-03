@@ -63,8 +63,8 @@ then
             maintain_badge=$maintained
         fi
 
-        cp "$script_dir/badges/$state_badge.svg" "$script_dir/badges/${app}.status.svg"
-        cp "$script_dir/badges/$maintain_badge.svg" "$script_dir/badges/${app}.maintain.svg"
+        cp "$script_dir/../badges/$state_badge.svg" "$script_dir/../badges/${app}.status.svg"
+        cp "$script_dir/../badges/$maintain_badge.svg" "$script_dir/../badges/${app}.maintain.svg"
 
     # List all apps from the list, by getting manifest ID.
     done <<< "$(jq --raw-output ".apps[] | .manifest.id" "$script_dir/apps.json")"
