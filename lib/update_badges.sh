@@ -39,10 +39,10 @@ then
         level=$(jq --raw-output ".apps[\"$app\"] | .level" "$script_dir/apps.json")
         if [[ "$state" == "working" ]]
         then
-            if [[ "$level" == "null" ]]
+            if [[ "$level" == "null" ]] || [[ "$level" == "?" ]]
             then
                 state="just-got-added-to-catalog"
-            elif [[ "$level" == "0" ]] || [[ "$level" == "?" ]] || [[ "$level" == "-1" ]]
+            elif [[ "$level" == "0" ]] || [[ "$level" == "-1" ]]
             then
                 state="broken"
             fi
