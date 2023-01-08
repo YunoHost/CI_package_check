@@ -50,7 +50,6 @@ function install_dependencies() {
     echo_bold "> Installing dependencies..."
     apt-get update
     apt-get install -y curl wget git python3-pip lynx jq
-    pip3 install xmpppy
     
     git clone https://github.com/YunoHost/package_check "./package_check"
 
@@ -279,7 +278,9 @@ configure_CI
 
 echo "Done!"
 echo " "
-echo "N.B. : The file ./.xmpp_password needs to be provided with the xmpp bot password to enable notifications."
+echo "N.B. : If you want to enable Matrix notification, you should look at "
+echo "the instructions inside lib/chat_notify.sh to deploy matrix-commander"
+echo ""
 echo "You may also want to tweak the 'config' file to run test with a different branch / arch"
 echo ""
 echo "When you're ready to start the CI, run:    systemctl restart $ci_user"

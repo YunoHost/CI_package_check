@@ -20,12 +20,12 @@ ynh_branch="$(grep "^YNH_BRANCH=" "./config" | cut --delimiter="=" --fields=2)"
 arch="$(grep "^ARCH=" "./config" | cut --delimiter="=" --fields=2)"
 dist="$(grep "^DIST=" "./config" | cut --delimiter="=" --fields=2)"
 
-# Enable xmpp notifications only on main CI
-if [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]] && [[ -e "./lib/xmpp_notify.py" ]]
+# Enable chat notifications only on main CI
+if [[ "$ynh_branch" == "stable" ]] && [[ "$arch" == "amd64" ]] && [[ -e "./lib/chat_notify.sh" ]]
 then
-    xmpp_notify="./lib/xmpp_notify.py"
+    chat_notify="./lib/chat_notify.sh"
 else
-    xmpp_notify="true" # 'true' is a dummy program that won't do anything
+    chat_notify="true" # 'true' is a dummy program that won't do anything
 fi
 
 #=================================================
@@ -52,7 +52,7 @@ then
         if ps --pid $lock_CI_PID | grep --quiet $lock_CI_PID && [[ $(grep PPid /proc/${lock_CI_PID}/status | awk '{print $2}') != "1" ]]
         then
             echo -e "\e[91m\e[1m!!! Another analyseCI process is currently using the lock $lock_CI !!!\e[0m"
-            "$xmpp_notify" "CI miserably crashed because another process is using the lock"
+            "$chat_notify" "CI miserably crashed because another process is using the lock"
             exit 1
         fi
     fi
@@ -137,7 +137,7 @@ function force_stop() {
 
     echo -e "\e[91m\e[1m!!! $message !!!\e[0m"
 
-    "$xmpp_notify" "While testing $app: $message"
+    "$chat_notify" "While testing $app: $message"
 
     WORKER_ID="$worker_id" ARCH="$arch" DIST="$dist" YNH_BRANCH="$ynh_branch" "./package_check/package_check.sh" --force-stop
 }
@@ -198,7 +198,7 @@ jq -e '' "./logs/$test_json_results" >/dev/null 2>/dev/null && bad_json="false" 
 app_level="$(jq -r ".level" "./logs/$test_json_results")"
 previous_level="$(jq -r ".$app" "$public_result_list")"
 
-# We post message on XMPP if we're running for tests on stable/amd64
+# We post message on chat if we're running for tests on stable/amd64
 message="Application $app "
 
 if [ "$bad_json" == "true" ] || [ "$app_level" -eq 0 ]; then
@@ -217,8 +217,8 @@ message+=" on $test_url"
 
 echo $message
 
-# Send XMPP notification
-"$xmpp_notify" "$message"
+# Send chat notification
+"$chat_notify" "$message"
 
 # Update badge
 cp "./badges/level${app_level}.svg" "./logs/$app.svg"
