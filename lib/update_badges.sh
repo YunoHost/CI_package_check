@@ -36,6 +36,18 @@ then
     do
         # Get the status for this app
         state=$(jq --raw-output ".apps[\"$app\"] | .state" "$script_dir/apps.json")
+        level=$(jq --raw-output ".apps[\"$app\"] | .level" "$script_dir/apps.json")
+        if [[ "$state" == "working" ]]
+        then
+            if [[ "$level" == "null" ]]
+            then
+                state="just-got-added-to-catalog"
+            elif [[ "$level" == "0" ]] || [[ "$level" == "?" ]] || [[ "$level" == "-1" ]]
+            then
+                state="broken"
+            fi
+        fi
+
         # Get the maintained status for this app
         maintained=$(jq --raw-output ".apps[\"$app\"] | .antifeatures | .[]" "$script_dir/apps.json" | grep -q 'package-not-maintained' && echo unmaintained || echo maintained)
 
