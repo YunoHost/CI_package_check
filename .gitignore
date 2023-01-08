@@ -4,3 +4,4 @@ badges/*.svg
 package_check/
 logs/
 config
+summary/*.png
