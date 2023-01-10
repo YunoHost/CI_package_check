@@ -19,6 +19,8 @@ cd "$script_dir/../../apps"
 git checkout -b modify_level
 
 public_result_list="$script_dir/../logs/list_level_stable_amd64.json"
+regressions=""
+improvements=""
 
 # For each app in the result file
 for APP in $(jq -r 'keys[]' "$public_result_list")
@@ -27,10 +29,20 @@ do
     if ! jq -r 'keys[]' "apps.json" | grep -qw $APP; then
         continue
     fi
+
+    current_level="$(jq -r ".\"$APP\".level" apps.json)"
     # Get the level from the stable+amd64 tests
-    level="$(jq -r ".\"$APP\".level" "$public_result_list")"
+    new_level="$(jq -r ".\"$APP\".level" "$public_result_list")"
+
+    if [[ "$current_level" != "null" ]] && [[ "$new_level" -lt "$current_level" ]]
+    then
+        regressions+="  - $APP $current_level -> $new_level | https://ci-apps.yunohost.org/ci/$APP/latestjob\n"
+    else
+        improvements+="  - $APP $current_level -> $new_level | https://ci-apps.yunohost.org/ci/$APP/latestjob\n"
+    fi
+
     # Inject the new level value to apps.json
-    jq --sort-keys --indent 4 --arg APP $APP --argjson level $level '.[$APP].level=$level' apps.json > apps.json.new
+    jq --sort-keys --indent 4 --arg APP $APP --argjson level $new_level '.[$APP].level=$new_level' apps.json > apps.json.new
     mv apps.json.new apps.json
 done
 
@@ -38,7 +50,7 @@ done
 # git diff -U2 --raw
 # Ajoute les modifications des listes au prochain commit
 git add --all *.json
-git commit -q -m "Update app's level" 
+git commit -q -m "Update app levels according to CI results$(echo -e "\n\nRegressions:\n$regressions\n\nImprovements:\n$improvements")"
 
 # Git doit être configuré sur la machine.
 # git config --global user.email "MAIL..."
