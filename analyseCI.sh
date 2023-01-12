@@ -199,26 +199,28 @@ app_level="$(jq -r ".level" "./logs/$test_json_results")"
 previous_level="$(jq -r ".$app" "$public_result_list")"
 
 # We post message on chat if we're running for tests on stable/amd64
-message="Application $app "
-
 if [ "$bad_json" == "true" ] || [ "$app_level" -eq 0 ]; then
-    message+="completely failed the continuous integration tests"
+    message="Application $app completely failed the continuous integration tests"
 elif [ -z "$previous_level" ]; then
-    message+="just reached level $app_level !"
+    message="Application $app rises from level (unknown) to level $app_level"
 elif [ $app_level -gt $previous_level ]; then
-    message+="rises from level $previous_level to level $app_level"
+    message="Application $app rises from level $previous_level to level $app_level"
 elif [ $app_level -lt $previous_level ]; then
-    message+="goes down from level $previous_level to level $app_level"
+    message="Application $app goes down from level $previous_level to level $app_level"
+elif [ $app_level -ge 6 ]; then
+    # Dont notify anything, reduce CI flood on app chatroom
+    message=""
 else
-    message+="stays at level $app_level"
+    message="Application $app stays at level $app_level"
 fi
 
-message+=" on $test_url"
-
-echo $message
-
 # Send chat notification
-"$chat_notify" "$message"
+if [[ -n "$message" ]]
+then
+    message+=" on $test_url"
+    echo $message
+    "$chat_notify" "$message"
+fi
 
 # Update badge
 cp "./badges/level${app_level}.svg" "./logs/$app.svg"
