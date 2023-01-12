@@ -37,12 +37,13 @@ do
     if [[ "$current_level" != "null" ]] && [[ "$new_level" -lt "$current_level" ]]
     then
         regressions+="  - $APP $current_level -> $new_level | https://ci-apps.yunohost.org/ci/$APP/latestjob\n"
-    else
+    elif [[ "$new_level" != "$current_level" ]]
+    then
         improvements+="  - $APP $current_level -> $new_level | https://ci-apps.yunohost.org/ci/$APP/latestjob\n"
     fi
 
     # Inject the new level value to apps.json
-    jq --sort-keys --indent 4 --arg APP $APP --argjson level $new_level '.[$APP].level=$new_level' apps.json > apps.json.new
+    jq --sort-keys --indent 4 --arg APP $APP --argjson new_level $new_level '.[$APP].level=$new_level' apps.json > apps.json.new
     mv apps.json.new apps.json
 done
 
