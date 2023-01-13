@@ -36,10 +36,10 @@ do
 
     if [[ "$current_level" != "null" ]] && [[ "$new_level" -lt "$current_level" ]]
     then
-        regressions+="  - $APP $current_level -> $new_level | https://ci-apps.yunohost.org/ci/$APP/latestjob\n"
+        regressions+="  - $APP $current_level -> $new_level | https://ci-apps.yunohost.org/ci/apps/$APP/latestjob\n"
     elif [[ "$new_level" != "$current_level" ]]
     then
-        improvements+="  - $APP $current_level -> $new_level | https://ci-apps.yunohost.org/ci/$APP/latestjob\n"
+        improvements+="  - $APP $current_level -> $new_level | https://ci-apps.yunohost.org/ci/apps/$APP/latestjob\n"
     fi
 
     # Inject the new level value to apps.json
