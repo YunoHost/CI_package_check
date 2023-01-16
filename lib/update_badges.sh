@@ -11,7 +11,7 @@ if [ "${0:0:1}" == "/" ]; then script_dir="$(dirname "$0")"; else script_dir="$(
 #=================================================
 
 # Get the apps list from app.yunohost.org
-wget -nv https://app.yunohost.org/default/v2/apps.json -O "$script_dir/apps.json"
+wget -nv https://app.yunohost.org/default/v3/apps.json -O "$script_dir/apps.json"
 
 do_update=1
 if [ -e "$script_dir/apps.json.md5" ]
