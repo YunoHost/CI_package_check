@@ -19,7 +19,8 @@ cd "$script_dir/../../apps"
 git checkout -b modify_level
 
 public_result_list="$script_dir/../logs/list_level_stable_amd64.json"
-regressions=""
+majorregressions=""
+minorregressions=""
 improvements=""
 
 # For each app in the result file
@@ -36,7 +37,12 @@ do
 
     if [[ "$current_level" != "null" ]] && [[ "$new_level" -lt "$current_level" ]]
     then
-        regressions+="  - $APP $current_level -> $new_level | https://ci-apps.yunohost.org/ci/apps/$APP/latestjob\n"
+        if [[ "$new_level" -le 4 ]] && [[ "$current_level" -gt 4 ]]
+        then
+            majorregressions+="  - $APP $current_level -> $new_level | https://ci-apps.yunohost.org/ci/apps/$APP/latestjob\n"
+        else
+            minorregressions+="  - $APP $current_level -> $new_level | https://ci-apps.yunohost.org/ci/apps/$APP/latestjob\n"
+        fi
     elif [[ "$new_level" != "$current_level" ]]
     then
         improvements+="  - $APP $current_level -> $new_level | https://ci-apps.yunohost.org/ci/apps/$APP/latestjob\n"
@@ -51,7 +57,7 @@ done
 # git diff -U2 --raw
 # Ajoute les modifications des listes au prochain commit
 git add --all *.json
-git commit -q -m "Update app levels according to CI results$(echo -e "\n\nRegressions:\n$regressions\n\nImprovements:\n$improvements")"
+git commit -q -m "Update app levels according to CI results$(echo -e "\n\n### Major Regressions\n$majorregressions\n\n### Minor Regressions\n$minorregressions\n\n### Improvements\n$improvements")"
 
 # Git doit être configuré sur la machine.
 # git config --global user.email "MAIL..."
