@@ -53,6 +53,7 @@ then
         then
             echo -e "\e[91m\e[1m!!! Another analyseCI process is currently using the lock $lock_CI !!!\e[0m"
             "$chat_notify" "CI miserably crashed because another process is using the lock"
+            sleep 10
             exit 1
         fi
     fi
