@@ -126,7 +126,7 @@ function watchdog() {
         fi
     done
 
-    if [ ! -e "./package_check/results-$worker_id.json" ]
+    if [ ! -e "./package_check/results_$worker_id.json" ]
     then
         force_stop "It looks like package_check did not finish properly ... on $test_url"
         return 1
@@ -150,8 +150,8 @@ function force_stop() {
 # Exec package check according to the architecture
 echo "$(date) - Starting a test for $app on architecture $arch distribution $dist with yunohost $ynh_branch"
 
-rm -f "./package_check/Complete-$worker_id.log"
-rm -f "./package_check/results-$worker_id.json"
+rm -f "./package_check/full_log_$worker_id.log"
+rm -f "./package_check/results_$worker_id.json"
 
 # Here we use a weird trick with 'script -qefc'
 # The reason is that :
@@ -165,10 +165,10 @@ script -qefc "$cmd" &
 watchdog $! || exit 1
 
 # Copy the complete log
-cp "./package_check/Complete-$worker_id.log" "./logs/$test_full_log"
-cp "./package_check/results-$worker_id.json" "./logs/$test_json_results"
-rm -f "./package_check/Complete-$worker_id.log"
-rm -f "./package_check/results-$worker_id.json"
+cp "./package_check/full_log_$worker_id.log" "./logs/$test_full_log"
+cp "./package_check/results_$worker_id.json" "./logs/$test_json_results"
+rm -f "./package_check/full_log_$worker_id.log"
+rm -f "./package_check/results_$worker_id.json"
 mkdir -p "./summary/"
 [ ! -e "./package_check/summary.png" ] || cp "./package_check/summary.png" "./summary/${job_id}.png"
 
