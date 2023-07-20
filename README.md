@@ -1,3 +1,7 @@
+### ⚠️ ⚠️ ⚠️ This repository is now obsolete because everything was integrated in https://github.com/YunoHost/yunorunner ⚠️ ⚠️ ⚠️
+
+---
+
 Continous Integration server for YunoHost apps
 ==============================================
 
